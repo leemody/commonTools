@@ -1,0 +1,43 @@
+{
+    "plan_id":1,
+    "data": {
+      command_count:4,
+
+
+    "_comment_command_header": "---- 以下为指令头部参数 ----",
+    "service_type": 80,
+    "_comment_service_type": "服务类型码 0x50(实时指令) 的十进制是 80",
+
+    "unit_count": 1,
+    "_comment_unit_count": "单元个数 0x01 表示该包包含1条指令",
+
+    "unit_type": 247,
+    "_comment_unit_type": "单元类型码 0xF7 的十进制是 247",
+
+    "device_id": 1,
+    "_comment_device_id": "设备号",
+
+    "_comment_target_coordinates": "目标点三维坐标 [x, y, z] 或 [经度, 纬度, 高度]",
+    "target_coordinates": [120.15, 30.28, 35.5],
+
+    "_comment_coordinate_system": "坐标系，例如 WGS84, GCJ02 等",
+    "coordinate_system": "WGS84",
+
+    "_comment_duration": "预计到达时长 (单位：秒)",
+    "duration": 10.5,
+
+    "_comment_position_accuracy": "位置精度要求 (单位：米)",
+    "position_accuracy": 0.1,
+
+    "_comment_velocity_accuracy": "速度精度要求 (单位：米/秒)",
+    "velocity_accuracy": 0.05,
+
+    "_comment_stay_duration": "到达目标点后的停留时长 (单位：秒)",
+    "stay_duration": 5.0,
+
+    "_comment_allow_continue": "任务完成后是否允许继续下一个指令 (true 或 false)",
+    "allow_continue": true,
+
+
+      }
+}
