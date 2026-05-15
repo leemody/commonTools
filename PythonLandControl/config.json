@@ -1,8 +1,4 @@
 {
-    "plan_id":1,
-    "data": {
-      command_count:4,
-
 
     "_comment_command_header": "---- 以下为指令头部参数 ----",
     "service_type": 80,
@@ -36,8 +32,8 @@
     "stay_duration": 5.0,
 
     "_comment_allow_continue": "任务完成后是否允许继续下一个指令 (true 或 false)",
-    "allow_continue": true,
+    "allow_continue": true
 
 
-      }
+      
 }

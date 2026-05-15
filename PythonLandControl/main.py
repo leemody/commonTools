@@ -1,71 +1,55 @@
-from udp_client import UDPClient
-from data_model import TargetData
-from epdu_header import EpduHeader
-from epdu_packet import EpduPacket
-from telecommand_frame import TelecommandFrame
-import os
+#!/usr/bin/env python3
 
-def main():
-    # 配置文件路径
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-    
-    # 1. 从配置文件读取并映射为数据区对象
-    try:
-        payload_data = TargetData.from_json(config_path)
-        print("成功从配置文件加载数据区。")
-    except Exception as e:
-        print(f"读取配置文件失败: {e}")
-        return
+import argparse
+import socket
+from pathlib import Path
 
-    # 2. 构造包头
-    # 假设：版本号 0, pt 为 1, APID 为 8, sf 为 3 (可根据实际需求修改)
-    header = EpduHeader(ver=0, pt=1, apid=8, sf=3)
+from excel_parser import parse_excel_to_task_plan
+from task_data_model import DEFAULT_APID, build_tc_frame, format_hex
 
-    # 3. 组装为完整 EPDU 包
-    packet = EpduPacket(header=header, payload=payload_data)
 
-    # 4. 执行 EPDU 打包(此时会自动计算数据区长度填充进包头，包括指令头)
-    epdu_bytes = packet.pack()
-    
-    # ==========================
-    # 新增: 封装到遥控帧
-    # ==========================
-    # 假设帧头为 5 个字节: 0xEB 0x90 0xEB 0x90 0x01
-    frame_header = b'\xEB\x90\xEB\x90\x01'
-    frame = TelecommandFrame(data=epdu_bytes, header_bytes=frame_header)
-    frame_bytes = frame.pack()
-    
-    # ==========================
-    # 打印测试
-    # ==========================
-    hex_output = ' '.join(f'{b:02X}' for b in frame_bytes)
-    print(f"\n准备发送的完整遥控帧 (头(5) + EPDU包({len(epdu_bytes)}) + CRC(2)) (16进制, 总长 {len(frame_bytes)} 字节):")
-    print(hex_output)
+def parse_hex_int(value: str) -> int:
+    return int(value, 16) if value.lower().startswith("0x") else int(value, 0)
 
-    print("\nEPDU 完整包 JSON 映射:")
-    print(packet.to_json_string())
 
-    print("\n--- 逆运算测试 ---")
-    try:
-        # 先解析出遥控帧
-        parsed_frame = TelecommandFrame.unpack(frame_bytes)
-        print("遥控帧逆运算(CRC校验)成功！提取出有效 EPDU 数据区。")
-        
-        # 再解析 EPDU 数据
-        parsed_packet = EpduPacket.unpack(parsed_frame.data)
-        print("EPDU 数据解析成功！得到的内容:")
-        print(parsed_packet.to_json_string())
-    except Exception as e:
-        print(f"逆运算失败: {e}")
-    print("-" * 50 + "\n")
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Build and send a task-plan TC Frame from Excel.")
+    parser.add_argument("--excel", default="commands.xlsx", help="Excel file path, default: commands.xlsx")
+    parser.add_argument("--sheet", default=None, help="Worksheet name, default: first worksheet")
+    parser.add_argument("--host", default="127.0.0.1", help="UDP destination host, default: 127.0.0.1")
+    parser.add_argument("--port", type=int, default=55042, help="UDP destination port, default: 55042")
+    parser.add_argument("--plan-id", type=parse_hex_int, default=100, help="Task plan ID, default: 100")
+    parser.add_argument("--format-ver", type=parse_hex_int, default=1, help="Task plan format version, default: 1")
+    parser.add_argument("--apid", type=parse_hex_int, default=DEFAULT_APID, help="EPDU APID, default: 0x43")
+    parser.add_argument("--dry-run", action="store_true", help="Print frame bytes without sending UDP")
+    args = parser.parse_args()
 
-    # ==========================
-    # 5. 网络发送
-    # ==========================
-    client = UDPClient("127.0.0.1", 8080)
-    # 最终发送的是完整的遥控帧数据
-    client.send_data(frame_bytes)
-    client.close()
+    excel_path = Path(args.excel)
+    if not excel_path.is_absolute():
+        excel_path = Path(__file__).resolve().parent / excel_path
+
+    task_plan = parse_excel_to_task_plan(str(excel_path),
+                                         sheet_name=args.sheet,
+                                         format_ver=args.format_ver,
+                                         plan_id=args.plan_id)
+    frame = build_tc_frame(task_plan, apid=args.apid)
+
+    print(f"TaskPlan plan_id={task_plan.plan_id} step_count={task_plan.step_count}")
+    for index, step in enumerate(task_plan.steps, start=1):
+        print(f"[{index:03d}] device=0x{step.device_id:02X} cmd=0x{step.cmd_id:04X} arg_len={step.arg_len}")
+
+    print(f"\nTC Frame bytes ({len(frame)} bytes):")
+    print(format_hex(frame))
+
+    if args.dry_run:
+        return 0
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sent = sock.sendto(frame, (args.host, args.port))
+
+    print(f"\nsent {sent} bytes to {args.host}:{args.port}")
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
