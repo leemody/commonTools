@@ -1,0 +1,10 @@
+# Generated artifacts (offline Win7 wheels and editor settings are retained).
+/build/
+/build-fixed/
+/build-win7/
+/dist/
+__pycache__/
+*.py[cod]
+/.pytest_cache/
+/.venv/
+/*.spec

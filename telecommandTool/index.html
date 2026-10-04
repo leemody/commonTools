@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>USLP 遥控帧生成器</title>
+<style>
+:root{font-family:system-ui,"Microsoft YaHei",sans-serif;color:#172235;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}header{background:#142740;color:white;padding:28px max(24px,calc((100vw - 1100px)/2))}h1{font-size:25px;margin:0 0 6px}header p{margin:0;color:#c5d5e8}main{max-width:1100px;margin:24px auto;padding:0 20px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(300px,.8fr);gap:20px}.card{background:white;border:1px solid #dce5ef;border-radius:12px;padding:22px;box-shadow:0 4px 18px #1427400b}h2{font-size:18px;margin:0 0 18px}h3{font-size:15px;margin:20px 0 12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}label{display:block;font-size:13px;font-weight:650;color:#45536b}input,select,textarea{display:block;width:100%;margin-top:6px;border:1px solid #bdcadd;border-radius:7px;padding:9px 10px;background:white;color:#172235;font:inherit;font-size:14px}textarea{min-height:76px;resize:vertical}.wide{grid-column:1/-1}.tabs{display:flex;gap:8px;margin-bottom:20px}.tabs button,button{border:1px solid #bdcadd;border-radius:7px;padding:9px 14px;background:white;color:#172235;cursor:pointer;font:inherit}.tabs button.active,.primary{background:#1761b8;color:white;border-color:#1761b8}button:hover{filter:brightness(.95)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}.hint{font-size:12px;color:#66758a;margin:6px 0 0}.activity{border:1px solid #dce5ef;border-radius:8px;padding:14px;margin:10px 0}.activity-head{display:flex;justify-content:space-between;align-items:center}.activity-head button{padding:4px 9px;color:#ae342d}.output{font-family:ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all;background:#101e31;color:#e1eeff;padding:16px;border-radius:8px;min-height:230px;max-height:65vh;overflow:auto;font-size:13px;line-height:1.65}.error{color:#b42318;min-height:22px}.meta{color:#53657d;font-size:13px;margin-bottom:12px}[hidden]{display:none!important}@media(max-width:760px){main{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
+
+main{max-width:1440px;grid-template-columns:minmax(320px,.85fr) minmax(0,1.4fr)}.card{min-width:0}.segments{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}.segment{border-left:5px solid var(--tone);font-size:12px;text-align:left}.segment small{display:block;color:#53657d;margin-top:4px}.output{min-height:120px;max-height:340px;white-space:normal;word-break:normal}.hex-byte{display:inline-block;padding:1px 3px;margin:1px;border-radius:3px;color:var(--tone);cursor:pointer}.hex-byte.selected{background:#fff;color:#101e31;outline:2px solid #f0b949}.hex-line{white-space:nowrap}.hex-offset{display:inline-block;width:48px;color:#98a7bd;font-size:11px}.field-tree{margin-top:16px;max-height:600px;overflow:auto}.field-tree details{border:1px solid #dce5ef;border-radius:6px;margin:8px 0;padding:8px}.field-tree details details{margin-left:8px}.field-tree summary{cursor:pointer;font-weight:650;font-size:13px}.field-tree summary small{font-weight:400;color:#53657d}.field-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,1.6fr);gap:8px;width:100%;text-align:left;margin-top:5px;font-size:12px;padding:8px}.field-row small{display:block;color:#66758a;font-weight:400;margin-top:3px}.field-row code{display:block;word-break:break-all;color:#53657d;margin-top:3px}.field-row.selected{background:#fff4ce;border-color:#b68412}.selection{font-size:12px;color:#45536b;min-height:20px}.parse-error{color:#b42318}@media(max-width:1000px){main{grid-template-columns:1fr}}@media(max-width:480px){.card{padding:14px}.field-row{grid-template-columns:1fr}.hex-byte{padding:1px 2px}}
+#meta,#segments .segment,#segments small,#selection,#output,#output .hex-offset,#field-tree summary,#field-tree summary small,#field-tree .field-row,#field-tree .field-row small,#field-tree .field-row code{font-size:14px}
+.tabs{flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header><h1>USLP 遥控帧生成器</h1><p>填写参数，生成并下载原始二进制帧</p></header>
+<main><section class="card"><div class="tabs"><button type="button" class="active" data-kind="low">普通遥控帧</button><button type="button" data-kind="schedule">ST11 时间调度</button><button type="button" data-kind="direct">直接指令</button><button type="button" data-kind="high">高速遥控</button><button type="button" data-kind="high_idle">高速空闲帧</button></div>
+<form id="form"><div class="grid" id="common">
+<label>SCID<input name="scid" value="0xFF01" required></label><label>VCF 帧计数<input name="vcf" value="0" required></label>
+<label>PID<input name="pid" value="2" required></label><label>PCAT<input name="pcat" value="0x03" required></label></div>
+<div id="low-fields"><h3>指令参数</h3><div class="grid"><label>服务类型<input name="service_type" value="0x02" required></label><label>消息子类型<input name="service_subtype" value="0x02" required></label><label>指令码<input name="command_code" value="0x5001" required></label><label class="wide">参数 HEX<textarea name="parameters">01 02 03</textarea></label></div></div>
+<div id="direct-fields" hidden><h3>直接指令 TC(2,1)</h3><p class="hint">VCID 固定为 4；只需填写一次 9 字节指令码。程序将同步字 2C 79 5E 与指令码组合后重复两次，应用数据共 24 字节。</p><div class="grid"><label class="wide">指令码 HEX<textarea name="direct_command_code" required placeholder="输入 9 字节 HEX，不含同步字"></textarea></label></div></div>
+<div id="high-fields" hidden><h3>高速遥控 TC(2,2)</h3><p class="hint">固定1020字节，VCID=10。后台固定TC(2,2)，应用数据原样组包，不自动添加指令码。有效包后自动补AA。VCF范围0–255。</p><div class="grid">
+<label>MAP ID<select name="high_map_id"><option value="14">14 · 大容量数据</option><option value="1">1 · 指令/注入</option></select></label>
+
+<label>分段标志<select name="high_sequence_flags"><option value="3">11 · 未分段</option><option value="1">01 · 第一段</option><option value="0">00 · 延续段</option><option value="2">10 · 最后一段</option></select></label>
+<label>包序列计数<input name="high_sequence_count" value="0" required></label>
+<label class="wide">应用数据 HEX<textarea name="high_app_data" placeholder="最多964字节；原样组包，可留空"></textarea></label></div></div>
+<div id="high-idle-fields" hidden><h3>高速空闲帧</h3><p class="hint">固定1020字节，VCID=63，MAP ID=0，无PUS包；977字节PN序列自动生成。按现有实现优先，VCF为1字节（0–255），UPID=0。</p></div>
+<div id="schedule-fields" hidden><h3>调度命令</h3><div class="grid"><label class="wide">命令<select name="command"><option value="enable">启用 TC(11,1)</option><option value="disable">禁用 TC(11,2)</option><option value="reset">重置 TC(11,3)</option><option value="insert">插入活动 TC(11,4)</option><option value="delete">删除活动 TC(11,6)</option><option value="shift">时间转移 TC(11,8)</option><option value="summary">摘要请求 TC(11,14)</option></select></label></div>
+<div id="insert-fields" hidden><h3>插入活动</h3><div class="grid"><label>子调度表 ID<input name="sub_schedule_id" value="0x0001"></label></div><div id="activities"></div><button type="button" id="add-activity">添加活动</button></div>
+<div id="filter-fields" hidden><h3>时间窗口</h3><div class="grid"><label id="offset-field" hidden>时间偏移（秒）<input name="time_offset" value="0x00000000"></label><label>时间类型<select name="time_type"><option value="0">0 · 全部时间</option><option value="1">1 · 起止时间</option><option value="2">2 · 从时间标签1起</option><option value="3">3 · 至时间标签2</option></select></label><label id="tag1-field" hidden>时间标签 1<input name="time_tag1" placeholder="0x0C845880"></label><label id="tag2-field" hidden>时间标签 2<input name="time_tag2" placeholder="0x0C8458BC"></label></div><p class="hint">时间标签：从 2020-01-01 00:00:00 UTC 起算的秒数。</p></div>
+<div id="ids-fields" hidden><h3>子调度表筛选</h3><label>子调度表 ID 列表<input name="sub_schedule_ids" placeholder="0x0001 0x0002"></label><p class="hint">用空格或逗号分隔；留空表示不按子调度表筛选。摘要请求最多 5 个。</p></div></div>
+<div class="actions"><button class="primary" type="submit">生成帧</button></div><p id="error" class="error" role="alert"></p></form></section>
+<section class="card"><h2>生成结果</h2><div id="meta" class="meta">等待生成</div><div id="segments" class="segments" aria-label="帧结构"></div><p id="selection" class="selection" aria-live="polite">偏移从 0 开始；点击分段或字段可高亮对应字节。</p><div id="output" class="output">帧字节将在这里显示</div><div class="actions"><button type="button" id="copy" disabled>复制 HEX</button><button type="button" id="download" disabled>下载 .bin</button></div><div id="field-tree" class="field-tree"></div><p class="hint">输出为未加扰、未做信道编码且不含 CLTU 的原始帧。</p></section></main>
+<template id="activity-template"><div class="activity"><div class="activity-head"><strong>活动</strong><button type="button" class="remove">移除</button></div><div class="grid"><label>释放时间<input name="release_time" value="0x0C845880" required></label><label>PID<input name="pid" value="0x02" required></label><label>PCAT<input name="pcat" value="0x03" required></label><label>服务类型<input name="service_type" value="0x02" required></label><label>消息子类型<input name="service_subtype" value="0x02" required></label><label>序列计数<input name="sequence_count" value="0x0000" required></label><label class="wide">应用数据 HEX<input name="app_data" value="50 01 01 02 03"></label></div></div></template>
+<script>
+const form=document.querySelector('#form'),tabs=[...document.querySelectorAll('[data-kind]')];let kind='low',frameHex='',downloadName='low_speed.bin';
+const field=(root,name)=>root.querySelector(`[name="${name}"]`).value.trim();
+function show(id,on){document.getElementById(id).hidden=!on}
+function refresh(){const schedule=kind==='schedule',command=field(form,'command'),type=field(form,'time_type');show('high-fields',kind==='high');show('high-idle-fields',kind==='high_idle');document.querySelector('#common [name=pid]').closest('label').hidden=kind==='high_idle';document.querySelector('#common [name=pcat]').closest('label').hidden=kind==='high_idle';show('low-fields',kind==='low');show('direct-fields',kind==='direct');show('schedule-fields',schedule);show('insert-fields',schedule&&command==='insert');show('filter-fields',schedule&&['delete','shift'].includes(command));show('ids-fields',schedule&&['delete','shift','summary'].includes(command));show('offset-field',schedule&&command==='shift');show('tag1-field',schedule&&['delete','shift'].includes(command)&&['1','2'].includes(type));show('tag2-field',schedule&&['delete','shift'].includes(command)&&['1','3'].includes(type));document.querySelectorAll('[hidden] input,[hidden] select,[hidden] textarea').forEach(el=>el.disabled=true);document.querySelectorAll('input,select,textarea').forEach(el=>{if(!el.closest('[hidden]'))el.disabled=false})}
+tabs.forEach(tab=>tab.addEventListener('click',()=>{kind=tab.dataset.kind;tabs.forEach(t=>t.classList.toggle('active',t===tab));document.querySelector('#common [name=pid]').value=kind==='schedule'?'1':'2';refresh()}));
+form.elements.command.addEventListener('change',refresh);form.elements.time_type.addEventListener('change',refresh);
+document.getElementById('add-activity').addEventListener('click',()=>{const node=document.getElementById('activity-template').content.cloneNode(true);node.querySelector('.remove').addEventListener('click',e=>e.target.closest('.activity').remove());document.getElementById('activities').append(node);refresh()});document.getElementById('add-activity').click();
+function collect(){const data={kind,scid:field(form,'scid'),vcf:field(form,'vcf'),pid:field(form,'pid'),pcat:field(form,'pcat')};if(kind==='low'){for(const key of ['service_type','service_subtype','command_code','parameters'])data[key]=field(form,key)}else if(kind==='high'){for(const key of ['map_id','sequence_flags','sequence_count','app_data'])data[key]=field(form,'high_'+key)}else if(kind==='high_idle'){delete data.pid;delete data.pcat}else if(kind==='direct'){data.command_code=field(form,'direct_command_code')}else{data.command=field(form,'command');if(data.command==='insert'){data.sub_schedule_id=field(form,'sub_schedule_id');data.activities=[...document.querySelectorAll('.activity')].map(node=>Object.fromEntries(['release_time','pid','pcat','service_type','service_subtype','sequence_count','app_data'].map(key=>[key,field(node,key)])))}if(['delete','shift'].includes(data.command)){data.time_type=field(form,'time_type');const type=data.time_type;if(['1','2'].includes(type))data.time_tag1=field(form,'time_tag1');if(['1','3'].includes(type))data.time_tag2=field(form,'time_tag2');if(data.command==='shift')data.time_offset=field(form,'time_offset')}if(['delete','shift','summary'].includes(data.command))data.sub_schedule_ids=field(form,'sub_schedule_ids').split(/[\s,]+/).filter(Boolean)}return data}
+// Decode only the returned bytes. These ranges never alter the generated frame.
+function decodeFrame(bytes, requestKind){
+  const size=bytes.length;
+  function uint(start,length){if(start<0||start+length>size)throw Error('字段数据不完整或超出边界');return bytes.slice(start,start+length).reduce((v,b)=>v*256+b,0)}
+  const hex=v=>'0x'+v.toString(16).toUpperCase();
+  const leaf=(name,start,length,value)=>({name,start,length,value:String(value)});
+  const group=(name,start,length,children)=>({name,start,length,children});
+  const time=(name,start)=>leaf(name,start,4,`${uint(start,4)} 秒 · ${new Date(Date.UTC(2020,0,1)+uint(start,4)*1000).toISOString().replace('T',' ').replace('.000Z',' UTC')}`);
+  function packet(start,end,mode,depth=0){
+    if(depth>16||end-start<13||start+uint(start+4,2)+7!==end)throw Error('PUS 包长度不匹配');
+    const word=uint(start,2),apid=word&2047,seq=uint(start+2,2),service=uint(start+7,1),subtype=uint(start+8,1),app=start+11,stop=end-2;
+    const primary=group('PUS 主导头',start,6,[leaf('版本 / 类型 / 副导头标志',start,2,`${word>>>13} / ${(word>>>12)&1} / ${(word>>>11)&1}`),leaf('APID / PID / PCAT',start,2,`${hex(apid)} / ${apid>>>4} / ${apid&15}`),leaf('分段标志 / 序列计数',start+2,2,`${seq>>>14} / ${seq&16383}`),leaf('包长度字段',start+4,2,`${uint(start+4,2)}（完整包 ${end-start} 字节）`)]);
+    const source=uint(start+9,2);
+    const secondary=group('PUS 副导头',start+6,5,[leaf('PUS 版本 / ACK',start+6,1,`${uint(start+6,1)>>>4} / ${hex(uint(start+6,1)&15)}`),leaf('服务类型',start+7,1,service),leaf('消息子类型',start+8,1,subtype),leaf('源 ID',start+9,2,`${hex(source)} · ${source.toString(2).padStart(11,'0')}（${source===0x7F6?'符合固定值':'与固定值 0x07F6 不一致'}）`)]);
+    let fields=[];
+    if(mode==='direct'){
+      if(service!==2||subtype!==1||stop-app!==24)throw Error('直接指令应为 TC(2,1)，应用数据24字节');
+      fields=[0,1].map(i=>{const offset=app+i*12;return group(`第${i+1}份指令`,offset,12,[leaf('指令地址同步字',offset,3,`${hex(uint(offset,3))}（${uint(offset,3)===0x2C795E?'符合固定值':'与固定值 0x2C795E 不一致'}）`),leaf('遥控指令码',offset+3,9,'9 字节')])});
+    }else if(mode==='high'){
+      fields=[leaf('应用数据',app,stop-app,`${stop-app} 字节（原样输入）`)];
+    }else if(mode==='low'){
+      if(stop-app<2)throw Error('缺少指令码');
+      fields=[leaf('指令码',app,2,hex(uint(app,2))),leaf('参数',app+2,stop-app-2,`${stop-app-2} 字节`)];
+    }else if(service===11){
+      let pos=app;
+      const take=(name,length,value)=>{if(pos+length>stop)throw Error('ST11 应用数据长度不足');const f=leaf(name,pos,length,value===undefined?uint(pos,length):value);pos+=length;fields.push(f);return f};
+      if(subtype===4){
+        take('子调度表 ID',2);const count=Number(take('活动数量 N',1).value);
+        for(let i=0;i<count;i++){
+          const entry=pos;if(pos+10>stop)throw Error('字段数据不完整或超出边界');
+          const release=time('释放时间',pos);pos+=4;
+          const endInner=pos+uint(pos+4,2)+7;if(endInner>stop)throw Error('内层 TC 包越界');
+          const inner=packet(pos,endInner,'embedded',depth+1);inner.name='内层 TC 请求包';
+          fields.push(group(`活动 ${i+1}`,entry,endInner-entry,[release,inner]));pos=endInner;
+        }
+      }else if([6,8,14].includes(subtype)){
+        if(subtype===8)take('时间偏移（秒）',4);
+        const type=Number(take('时间窗口类型',1).value);
+        if(type>3||(subtype===14&&type!==0))throw Error('未知时间窗口类型');
+        if(type===1||type===2){if(pos+4>stop)throw Error('字段数据不完整或超出边界');fields.push(time('时间标签 1',pos));pos+=4}
+        if(type===1||type===3){if(pos+4>stop)throw Error('字段数据不完整或超出边界');fields.push(time('时间标签 2',pos));pos+=4}
+        const count=Number(take('子调度表数量 N1',1).value);
+        for(let i=0;i<count;i++)take(`子调度表 ID ${i+1}`,2);
+      }else if(![1,2,3].includes(subtype)){take('应用数据',stop-pos,`${stop-pos} 字节`)}
+      if(pos!==stop)throw Error('ST11 应用数据存在未解析字节');
+    }else fields=[leaf('应用数据',app,stop-app,`${stop-app} 字节（按业务协议解释）`)];
+    return group('数据域 · PUS 遥控包',start,end-start,[primary,secondary,group('应用数据',app,stop-app,fields),leaf('包 ECF',stop,2,hex(uint(stop,2)))]);
+  }
+  const securitySize=requestKind==='direct'?6:14,tfdfStart=8+securitySize,packetStart=tfdfStart+3;
+  if(size<packetStart+13+18||uint(4,2)+1!==size)throw Error('帧长度与主导头不一致');
+  const word=uint(0,4),packetEnd=size-18;
+  let dataNode;
+  if(requestKind==='high_idle'){
+    if(size!==1020||((word>>>5)&63)!==63||uint(tfdfStart+1,2)!==0xFFFE)throw Error('高速空闲帧长度、VCID或指针错误');
+    dataNode=leaf('数据域 · PN空闲填充',packetStart,packetEnd-packetStart,'977字节；每帧全1初态的32位LFSR序列，无PUS包');
+  }else if(requestKind==='high'){
+    const validSize=uint(tfdfStart+1,2)+1;
+    if(size!==1020||validSize<13||validSize>packetEnd-packetStart)throw Error('高速帧长度或有效字节指针错误');
+    dataNode=group('数据域 · PUS包与填充',packetStart,packetEnd-packetStart,[packet(packetStart,packetStart+validSize,'high'),leaf('AA填充',packetStart+validSize,packetEnd-packetStart-validSize,'不计入PUS包长度和包ECF；计入帧FECF')]);
+  }else dataNode=packet(packetStart,packetEnd,requestKind);
+  const roots=[group('USLP 主导头',0,8,[leaf('TFVN / 目的标志',0,4,`${word>>>28} / ${(word>>>11)&1}`),leaf('SCID',0,4,hex((word>>>12)&65535)),leaf('VCID / MAP ID',0,4,`${(word>>>5)&63} / ${(word>>>1)&15}`),leaf('帧长度字段',4,2,`${uint(4,2)}（完整帧 ${size} 字节）`),leaf('控制字段',6,1,hex(uint(6,1))),leaf('VCF 帧计数',7,1,uint(7,1))]),leaf('安全头',8,securitySize,`${securitySize} 字节`),group('TFDF 导头',tfdfStart,3,[leaf('构造规则 / UPID',tfdfStart,1,`${uint(tfdfStart,1)>>>5} / ${uint(tfdfStart,1)&31}`),leaf('首导头 / 最后有效字节指针',tfdfStart+1,2,hex(uint(tfdfStart+1,2)))]),dataNode,leaf('安全尾',packetEnd,16,'16 字节'),leaf('帧 FECF',size-2,2,hex(uint(size-2,2)))];
+  return roots;
+}
+function renderFrame(hexText,requestKind){
+  const bytes=hexText.trim().split(/\s+/).map(x=>parseInt(x,16)),output=document.getElementById('output'),segments=document.getElementById('segments'),tree=document.getElementById('field-tree'),selection=document.getElementById('selection');
+  output.replaceChildren();segments.replaceChildren();tree.replaceChildren();
+  selection.textContent='偏移从 0 开始；点击分段或字段可高亮对应字节。';
+  const tones=['#82c4ff','#f1c66f','#b8a0ff','#8ce0bb','#f2a9ce','#ffad8c'];
+  let roots;
+  try{roots=decodeFrame(bytes,requestKind)}catch(error){output.textContent=hexText;tree.textContent='字段解析失败：'+error.message+'。仍可复制或下载原始帧。';return}
+  const byteNodes=[],buttons=[];
+  function select(node){
+    byteNodes.forEach((el,i)=>el.classList.toggle('selected',i>=node.start&&i<node.start+node.length));
+    buttons.forEach(([button,field])=>{const active=field===node;button.classList.toggle('selected',active);button.setAttribute('aria-pressed',String(active))});
+    selection.textContent=`${node.name} · 偏移 ${node.start} · ${node.length} 字节`;
+    if(node.length)byteNodes[node.start].scrollIntoView({block:'nearest',inline:'nearest'});
+  }
+  function range(node){return `偏移 ${node.start}${node.length>1?'–'+(node.start+node.length-1):''} · ${node.length} 字节`}
+  function button(node){const b=document.createElement('button');b.type='button';b.setAttribute('aria-pressed','false');b.addEventListener('click',()=>select(node));buttons.push([b,node]);return b}
+  for(let i=0;i<bytes.length;i+=16){
+    const line=document.createElement('div');line.className='hex-line';const offset=document.createElement('span');offset.className='hex-offset';offset.textContent=String(i).padStart(3,'0');line.append(offset);
+    bytes.slice(i,i+16).forEach((value,j)=>{const index=i+j,rootIndex=roots.findIndex(r=>index>=r.start&&index<r.start+r.length),el=document.createElement('span');el.className='hex-byte';el.textContent=value.toString(16).toUpperCase().padStart(2,'0');el.style.setProperty('--tone',tones[rootIndex]);el.title=`${roots[rootIndex].name} · 偏移 ${index}`;el.addEventListener('click',()=>select(roots[rootIndex]));line.append(el);byteNodes.push(el)});output.append(line);
+  }
+  function render(node,parent,depth=0){
+    if(node.children){const details=document.createElement('details');details.open=depth===0;const summary=document.createElement('summary');summary.textContent=node.name+' ';const small=document.createElement('small');small.textContent=range(node);summary.append(small);summary.addEventListener('click',()=>select(node));details.append(summary);node.children.forEach(child=>render(child,details,depth+1));parent.append(details)}
+    else{const b=button(node);b.className='field-row';const title=document.createElement('span');title.textContent=node.name;const small=document.createElement('small');small.textContent=range(node);title.append(small);const value=document.createElement('span');value.textContent=node.value;const code=document.createElement('code');code.textContent=node.length?bytes.slice(node.start,node.start+node.length).map(v=>v.toString(16).toUpperCase().padStart(2,'0')).join(' '):'（空）';value.append(code);b.append(title,value);parent.append(b)}
+  }
+  roots.forEach((node,i)=>{const b=button(node);b.className='segment';b.style.setProperty('--tone',tones[i]);b.textContent=node.name;const small=document.createElement('small');small.textContent=range(node);b.append(small);segments.append(b);render(node,tree)});
+}
+form.addEventListener('submit',async e=>{
+  e.preventDefault();const submit=form.querySelector('[type="submit"]');submit.disabled=true;document.getElementById('error').textContent='';
+  try{
+    const request=collect();const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});const result=await response.json();if(!response.ok)throw Error(result.error||'生成失败');
+    frameHex=result.hex;downloadName=`${request.kind==='low'?'low_speed':request.kind==='direct'?'direct_command':request.kind==='high'?'high_speed':request.kind==='high_idle'?'high_speed_idle':'st11_'+request.command}.bin`;
+    document.getElementById('meta').textContent=`${result.size} 字节 · ${request.kind==='low'?'普通遥控帧':request.kind==='direct'?'直接指令 TC(2,1)':request.kind==='high'?'高速遥控 TC(2,2)':request.kind==='high_idle'?'高速空闲帧':'ST11 '+request.command}`;
+    renderFrame(frameHex,request.kind);document.getElementById('copy').disabled=false;document.getElementById('download').disabled=false;
+  }catch(error){frameHex='';document.getElementById('error').textContent=error.message;document.getElementById('meta').textContent='生成失败';document.getElementById('output').textContent='帧字节将在这里显示';document.getElementById('segments').replaceChildren();document.getElementById('field-tree').replaceChildren();document.getElementById('selection').textContent='';document.getElementById('copy').disabled=true;document.getElementById('download').disabled=true}
+  finally{submit.disabled=false}
+});
+document.getElementById('copy').addEventListener('click',()=>navigator.clipboard.writeText(frameHex));document.getElementById('download').addEventListener('click',()=>{const bytes=Uint8Array.from(frameHex.split(' ').map(x=>parseInt(x,16))),url=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'})),a=document.createElement('a');a.href=url;a.download=downloadName;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});refresh();
+</script></body></html>
