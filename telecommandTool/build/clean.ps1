@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $projectPrefix = $projectRoot.TrimEnd('\') + '\'
 # Only these reproducible outputs are eligible. Source, offline wheels and releases stay.
-$relativeTargets = @('build', 'build-fixed', 'build-win7', '__pycache__', 'tests\__pycache__', 'TelecommandTool.spec', 'dist\TelecommandTool-fixed.exe')
+$relativeTargets = @('build\work', 'build\spec', 'build\work-win7', 'build\spec-win7', 'build-fixed', 'build-win7', '__pycache__', 'tests\__pycache__', 'src\__pycache__', 'src\tests\__pycache__', 'TelecommandTool.spec', 'dist\TelecommandTool-fixed.exe')
 foreach ($relativeTarget in $relativeTargets) {
     $targetPath = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $relativeTarget))
     if (-not $targetPath.StartsWith($projectPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {

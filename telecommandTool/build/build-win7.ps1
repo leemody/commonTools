@@ -4,14 +4,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
+$projectRoot = Split-Path -Parent $PSScriptRoot
 $originalPath = $env:PATH
-Push-Location -LiteralPath $PSScriptRoot
+Push-Location -LiteralPath $projectRoot
 try {
     # Explicit parameter / environment variable takes precedence over discovery.
     if (-not $PythonPath) {
-        $localPython = Join-Path $PSScriptRoot '.build-env-py38\python.exe'
+        $localPython = Join-Path $projectRoot '.build-env-py38\python.exe'
+        $existingPython = 'D:\PythonLandControl\telecommandTool\.build-env-py38\python.exe'
         if (Test-Path -LiteralPath $localPython) {
             $PythonPath = $localPython
+        } elseif (Test-Path -LiteralPath $existingPython) {
+            $PythonPath = $existingPython
         } elseif (Get-Command py -ErrorAction SilentlyContinue) {
             $detected = & py -3.8 -c 'import sys; print(sys.executable)' 2>$null
             if ($LASTEXITCODE -eq 0) { $PythonPath = "$detected".Trim() }
@@ -26,6 +30,7 @@ try {
         throw 'Win7 x64 build requires Windows Python 3.8 (64-bit). Use -PythonPath or TELECOMMAND_WIN7_PYTHON.'
     }
     $PythonPath = $runtime.executable
+    Write-Host "Win7 build Python: $PythonPath"
     # Conda keeps OpenSSL DLLs in Library\bin; search this runtime before host tools.
     $runtimeDir = Split-Path -Parent $PythonPath
     $env:PATH = "$runtimeDir;$(Join-Path $runtimeDir 'Library\bin');$(Join-Path $runtimeDir 'Scripts');$originalPath"
@@ -33,21 +38,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Install the pinned builder: & '$PythonPath' -m pip install pyinstaller==5.13.2" }
 
     # Importing and testing with the target interpreter catches runtime incompatibilities.
-    & $PythonPath -B -c 'import web_server, low_speed_telecommand_frame_generator, time_schedule_telecommand_frame_generator, direct_command_frame_generator, high_speed_frame_generator, high_speed_idle_frame_generator'
+    & $PythonPath -B -c "import sys; sys.path.insert(0, 'src'); import web_server, low_speed_telecommand_frame_generator, time_schedule_telecommand_frame_generator, direct_command_frame_generator, high_speed_frame_generator, high_speed_idle_frame_generator"
     if ($LASTEXITCODE -ne 0) { throw 'Python 3.8 application import check failed.' }
-    & $PythonPath -B -m unittest discover -s tests -v
+    & $PythonPath -B -m unittest discover -s src/tests -t src -v
     if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed; packaging aborted.' }
 
-    $indexPath = Join-Path $PSScriptRoot 'index.html'
+    $indexPath = Join-Path $projectRoot 'frontend\index.html'
     if (-not (Test-Path -LiteralPath $indexPath)) { throw 'Missing index.html.' }
     & $PythonPath -B -m PyInstaller --noconfirm --clean --onefile --console --noupx `
-        --name TelecommandTool-Win7-x64 --distpath dist --workpath build-win7 `
-        --specpath build-win7 --add-data "$indexPath;." web_server.py
+        --name TelecommandTool-Win7-x64 --distpath dist --workpath build/work-win7 `
+        --specpath build/spec-win7 --add-data "$indexPath;frontend" src/web_server.py
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed: $LASTEXITCODE" }
 
-    $exePath = Join-Path $PSScriptRoot 'dist\TelecommandTool-Win7-x64.exe'
+    $exePath = Join-Path $projectRoot 'dist\TelecommandTool-Win7-x64.exe'
     if (-not (Test-Path -LiteralPath $exePath)) { throw 'Build did not produce the executable.' }
-    $sources = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.py')
+    $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Filter '*.py')
     $sources += Get-Item -LiteralPath $indexPath
     $sources += Get-Item -LiteralPath (Join-Path $PSScriptRoot 'build-win7.ps1')
     $sourceHashes = @{}
@@ -64,7 +69,7 @@ try {
         source_sha256 = $sourceHashes
         validation = 'Python 3.8 import and regression tests passed; target OS acceptance required.'
     }
-    $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'dist\TelecommandTool-Win7-x64.build.json') -Encoding UTF8
+    $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $projectRoot 'dist\TelecommandTool-Win7-x64.build.json') -Encoding UTF8
     Write-Host "Built: $exePath"
     Write-Host 'Target: Windows 7 SP1 x64. Verify startup and browser operation on the target PC.'
 } finally {
