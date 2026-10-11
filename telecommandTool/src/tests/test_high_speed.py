@@ -63,6 +63,31 @@ class HighSpeedTests(unittest.TestCase):
         self.check_frame(frame,10,14)
         with self.assertRaises(ValueError): wrap_packet(packet=b'\0'*978,scid=0,vcf_count=0,profile=high_speed_profile())
 
+    def test_vcid_choices(self):
+        default = build_high_speed_frame(app_data=bytes((1, 2)))
+        for vcid in (10, 5, 4, 63):
+            with self.subTest(vcid=vcid):
+                frame = build_high_speed_frame(app_data=bytes((1, 2)), vcid=vcid)
+                self.check_frame(frame, vcid, 14)
+                self.assertEqual(frame[4:-2], default[4:-2])
+                self.assertEqual(generate({'kind': 'high', 'vcid': str(vcid),
+                                           'app_data': '01 02'}), frame)
+
+    def test_vcid_defaults(self):
+        expected = build_high_speed_frame()
+        self.check_frame(expected, 10, 14)
+        for request in ({'kind': 'high'}, {'kind': 'high', 'vcid': ''},
+                        {'kind': 'high', 'vcid': None}):
+            self.assertEqual(generate(request), expected)
+
+    def test_invalid_vcid(self):
+        for vcid in (0, 6, -1, 64, True, 10.0, 'bad'):
+            with self.subTest(vcid=vcid):
+                with self.assertRaises(ValueError):
+                    build_high_speed_frame(vcid=vcid)
+                with self.assertRaises(ValueError):
+                    generate({'kind': 'high', 'vcid': vcid})
+
     def test_dispatch(self):
         self.assertEqual(generate({'kind':'high','app_data':'01 02'}),build_high_speed_frame(app_data=b'\x01\x02'))
         self.assertEqual(generate({'kind':'high_idle'}),build_high_speed_idle_frame())

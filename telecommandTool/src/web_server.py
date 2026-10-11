@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""本地遥控帧生成页面：python web_server.py"""
+"""本地遥控帧生成页面：python src/web_server.py"""
 
 import json
+import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,7 +15,8 @@ import high_speed_frame_generator as high
 import high_speed_idle_frame_generator as idle
 
 
-PAGE = Path(__file__).with_name("index.html")
+RESOURCE_ROOT = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
+PAGE = RESOURCE_ROOT / "frontend" / "index.html"
 
 
 def number(data, key, default=None):
@@ -54,10 +56,13 @@ def generate(data):
         return idle.build_high_speed_idle_frame(scid=number(data, "scid", "0xFF01"),
                                                 vcf_count=number(data, "vcf", 0))
     if kind == "high":
+        vcid = number(data, "vcid", 10)
+        if vcid is None:
+            vcid = 10
         return high.build_high_speed_frame(
             scid=number(data, "scid", "0xFF01"), vcf_count=number(data, "vcf", 0),
             pid=number(data, "pid", 2), pcat=number(data, "pcat", 3),
-            map_id=number(data, "map_id", 14),
+            map_id=number(data, "map_id", 14), vcid=vcid,
             sequence_count=number(data, "sequence_count", 0),
             sequence_flags=number(data, "sequence_flags", 3), app_data=hex_bytes(data, "app_data"),
         )

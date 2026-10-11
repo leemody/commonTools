@@ -1,5 +1,8 @@
 # Generated artifacts (offline Win7 wheels and editor settings are retained).
-/build/
+/build/work/
+/build/spec/
+/build/work-win7/
+/build/spec-win7/
 /build-fixed/
 /build-win7/
 /dist/

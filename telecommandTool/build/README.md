@@ -5,26 +5,26 @@
 
 ```text
 telecommandTool/
-├─ web_server.py                       # HTTP入口与请求分发
-├─ index.html                          # 表单、HEX及协议字段展示
-├─ low_speed_telecommand_frame_generator.py
-├─ time_schedule_telecommand_frame_generator.py
-├─ direct_command_frame_generator.py
-├─ high_speed_frame_generator.py
-├─ high_speed_idle_frame_generator.py
-├─ uslp_common.py                      # 新生成器共用的帧封装工具
-├─ tests/                              # 组包及回归测试
-├─ scripts/clean.ps1                   # 清理可再生成的产物
-├─ build.ps1 / build-win7.ps1           # 标准版与Win7构建入口
-├─ .build-packages/                    # 保留的Win7离线构建依赖
-├─ build/ / build-win7/                # 构建中间文件，忽略提交
-└─ dist/                              # 可执行程序，忽略提交
+├─ src/                         # Python源码与命令行入口
+│  ├─ web_server.py              # HTTP入口与请求分发
+│  ├─ *_generator.py            # 各类帧生成器
+│  ├─ uslp_common.py             # 公共帧封装工具
+│  └─ tests/                    # 回归测试
+├─ frontend/index.html          # 前端表单、HEX及协议字段展示
+├─ build/                       # 构建脚本和Markdown文档
+│  ├─ build.ps1 / build-win7.ps1
+│  ├─ clean.ps1
+│  ├─ README.md / WIN7_BUILD.md
+│  └─ work*/ / spec*/           # 可清理的构建中间文件
+├─ .build-packages/             # Win7离线构建依赖
+└─ dist/                       # 可执行程序
 ```
 
-生成器保留在根目录，原有命令行、导入路径和两个原始生成文件均不变。测试从工程根目录运行：
+以下命令均从工程根目录运行。启动页面与运行测试：
 
 ```powershell
-python -B -m unittest discover -s tests -v
+python src/web_server.py
+python -B -m unittest discover -s src/tests -t src -v
 ```
 
 统一发布名称为 `dist\TelecommandTool.exe`，Win7版为 `dist\TelecommandTool-Win7-x64.exe`。打包前关闭相应程序的服务窗口，避免文件占用；不再把 `-fixed` 作为日常版本名称。构建脚本将自动生成的spec文件放在构建目录。
@@ -32,7 +32,7 @@ python -B -m unittest discover -s tests -v
 清理构建缓存及历史修复产物：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clean.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build\clean.ps1
 ```
 
 清理脚本保留源码、测试、离线依赖和标准发布EXE；仅当fixed版与标准版字节一致时删除fixed副本，遇到占用则保留并提示。关闭旧fixed服务后可再次运行。`.gitignore`不影响已经跟踪的文件，首次清理产生的缓存/spec删除记录应随工程整理一并提交。
@@ -53,7 +53,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clean.ps1
 3. 在项目目录运行兼容版打包脚本：
 
    ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .\build-win7.ps1 -PythonPath C:\Python38\python.exe
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\build\build-win7.ps1 -PythonPath C:\Python38\python.exe
    ```
 
 输出文件为 `dist\TelecommandTool-Win7-x64.exe`。目标电脑还应安装 Windows 7 SP1 和系统可用的最后一批更新。由于 Windows 7 和 Python 3.8 均已停止官方维护，该版本仅用于兼容无法升级的设备。
@@ -72,7 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clean.ps1
 3. 在项目目录运行：
 
    ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\build\build.ps1
    ```
 
 完成后，可执行文件位于 `dist\TelecommandTool.exe`。将这个 `.exe` 复制到目标 Windows 电脑即可使用；`index.html`、全部帧生成模块及公共模块已打包在其中。每次修改页面或 Python 代码后，重新运行上述打包命令。
@@ -84,7 +84,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clean.ps1
 3. 在右侧查看帧长度和 HEX 内容。可点击“复制 HEX”或“下载 .bin”获取结果。
 4. 关闭程序窗口即可停止服务。若 8000 端口已被占用，请先关闭占用该端口的程序。
 
-开发环境中也可运行 `python web_server.py` 启动同一页面。
+开发环境中也可运行 `python src/web_server.py` 启动同一页面。
 
 ## 功能和能力
 
@@ -95,7 +95,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clean.ps1
 | 字段 | 高速遥控 | 高速空闲 |
 |---|---|---|
 | 帧长 / 长度字段 | 1020字节 / 03FB | 1020字节 / 03FB |
-| VCID | 10 | 63 |
+| VCID | 默认10，可选10、5、4、63 | 63 |
 | MAP ID | 14（大容量）或1（指令/注入） | 0 |
 | VCF | 1字节，0..255 | 1字节，0..255 |
 | 安全头 / 尾 | 14 / 16个5A | 14 / 16个5A |
@@ -117,9 +117,9 @@ PN使用D^0+D^1+D^2+D^22+D^32，全1初态、MSB先出，每帧重置。前20字
 - 非零MAP按4位MAP ID加1位主导头结束标志编码；旧模块MAP固定0，原有字节不变。
 
 ```powershell
-python high_speed_frame_generator.py --app-data "01 02 03" --output high.bin
-python high_speed_idle_frame_generator.py --vcf 255 --output idle.bin
-python -B -m unittest discover -s tests -v
+python src/high_speed_frame_generator.py --app-data "01 02 03" --output high.bin
+python src/high_speed_idle_frame_generator.py --vcf 255 --output idle.bin
+python -B -m unittest discover -s src/tests -t src -v
 ```
 
 ### USLP 直接指令帧
@@ -131,7 +131,7 @@ VCID固定为4，安全头为6个 `5A`，安全尾沿用低速帧的16个 `5A`�
 命令行示例（指令码仅用于演示）：
 
 ```powershell
-python direct_command_frame_generator.py --command-code "00 01 02 03 04 05 06 07 08" --output direct.bin
+python src/direct_command_frame_generator.py --command-code "00 01 02 03 04 05 06 07 08" --output direct.bin
 ```
 
 新增公共封装层位于 `uslp_common.py`，复用已有PUS包编码和CRC方法，原低速和ST11生成文件保持不变。
