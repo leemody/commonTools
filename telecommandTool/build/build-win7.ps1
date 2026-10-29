@@ -47,6 +47,8 @@ try {
     if (-not (Test-Path -LiteralPath $indexPath)) { throw 'Missing index.html.' }
     $frontendPath = Join-Path $projectRoot 'frontend'
     if (-not (Test-Path -LiteralPath (Join-Path $frontendPath 'image.png'))) { throw 'Missing image.png.' }
+    $versionUpdater = Join-Path $PSScriptRoot 'increment-version.ps1'
+    & $versionUpdater -IndexPath $indexPath
     & $PythonPath -B -m PyInstaller --noconfirm --clean --onefile --console --noupx `
         --name TelecommandTool-Win7-x64 --distpath dist --workpath build/work-win7 `
         --specpath build/spec-win7 --add-data "$frontendPath;frontend" src/web_server.py
@@ -57,6 +59,7 @@ try {
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Filter '*.py')
     $sources += Get-ChildItem -LiteralPath $frontendPath -File
     $sources += Get-Item -LiteralPath (Join-Path $PSScriptRoot 'build-win7.ps1')
+    $sources += Get-Item -LiteralPath $versionUpdater
     $sourceHashes = @{}
     foreach ($source in $sources) {
         $sourceHashes[$source.Name] = (Get-FileHash -LiteralPath $source.FullName -Algorithm SHA256).Hash

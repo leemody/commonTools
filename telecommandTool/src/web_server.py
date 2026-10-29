@@ -13,6 +13,7 @@ import time_schedule_telecommand_frame_generator as schedule
 import direct_command_frame_generator as direct
 import high_speed_frame_generator as high
 import high_speed_idle_frame_generator as idle
+from excel_export import create_low_upload_workbook
 
 
 RESOURCE_ROOT = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
@@ -155,6 +156,29 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        if self.path == "/api/export/excel":
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                if size < 1 or size > 128 * 1024 * 1024:
+                    raise ValueError("Excel request must be between 1 byte and 128 MiB")
+                data = json.loads(self.rfile.read(size))
+                if not isinstance(data, dict):
+                    raise ValueError("Excel export request must be an object")
+                body = create_low_upload_workbook(data.get("frames"))
+                content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                status = 200
+            except (ValueError, TypeError, OverflowError, json.JSONDecodeError) as exc:
+                body = json.dumps({"error": str(exc)}, ensure_ascii=False).encode()
+                content_type = "application/json; charset=utf-8"
+                status = 400
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            if status == 200:
+                self.send_header("Content-Disposition", 'attachment; filename="ordinary_file_upload.xlsx"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path != "/api/generate":
             self.send_error(404)
             return
