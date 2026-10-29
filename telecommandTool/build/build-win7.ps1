@@ -45,15 +45,17 @@ try {
 
     $indexPath = Join-Path $projectRoot 'frontend\index.html'
     if (-not (Test-Path -LiteralPath $indexPath)) { throw 'Missing index.html.' }
+    $frontendPath = Join-Path $projectRoot 'frontend'
+    if (-not (Test-Path -LiteralPath (Join-Path $frontendPath 'image.png'))) { throw 'Missing image.png.' }
     & $PythonPath -B -m PyInstaller --noconfirm --clean --onefile --console --noupx `
         --name TelecommandTool-Win7-x64 --distpath dist --workpath build/work-win7 `
-        --specpath build/spec-win7 --add-data "$indexPath;frontend" src/web_server.py
+        --specpath build/spec-win7 --add-data "$frontendPath;frontend" src/web_server.py
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed: $LASTEXITCODE" }
 
     $exePath = Join-Path $projectRoot 'dist\TelecommandTool-Win7-x64.exe'
     if (-not (Test-Path -LiteralPath $exePath)) { throw 'Build did not produce the executable.' }
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Filter '*.py')
-    $sources += Get-Item -LiteralPath $indexPath
+    $sources += Get-ChildItem -LiteralPath $frontendPath -File
     $sources += Get-Item -LiteralPath (Join-Path $PSScriptRoot 'build-win7.ps1')
     $sourceHashes = @{}
     foreach ($source in $sources) {

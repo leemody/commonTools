@@ -134,12 +134,22 @@ def generate(data):
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path != "/":
+        resources = {
+            "/": (PAGE, "text/html; charset=utf-8"),
+            "/image.png": (PAGE.with_name("image.png"), "image/png"),
+        }
+        resource = resources.get(self.path)
+        if resource is None:
             self.send_error(404)
             return
-        body = PAGE.read_bytes()
+        path, content_type = resource
+        try:
+            body = path.read_bytes()
+        except FileNotFoundError:
+            self.send_error(404)
+            return
         self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

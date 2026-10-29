@@ -21,10 +21,14 @@ def build_high_speed_frame(*, app_data: bytes = b'',
                            pcat: int = 3, map_id: int = 14, sequence_count: int = 0,
                            sequence_flags: int = 3, vcid: int = 10) -> bytes:
     """单帧单包；用户提供当前分段，不自动拆文件或发送。"""
+    if sequence_flags == 3:
+        sequence_count = 0
     for name, value, bits in (('PID', pid, 7), ('PCAT', pcat, 4),
                               ('包序列计数', sequence_count, 14), ('分段标志', sequence_flags, 2)):
         uint(name, value, bits)
     uint('VCID', vcid, 6)
+    if sequence_flags == 3:
+        sequence_count = 0
     if vcid not in (10, 5, 4, 63):
         raise ValueError('高速VCID只能为10、5、4或63')
     if map_id not in (1, 14):

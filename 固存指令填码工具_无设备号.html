@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>固存模块遥控指令填码工具</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: #f5f7fa; color: #1f2329; font-size: 14px;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #1f3864; }
+  .sub { font-size: 12px; color: #7a8290; margin-bottom: 18px; }
+  .wrap { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+  .card {
+    background: #fff; border: 1px solid #e3e8ef; border-radius: 8px;
+    padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .left { width: 420px; min-width: 360px; }
+  .right { flex: 1; min-width: 420px; }
+  label { display: block; font-size: 12px; color: #5a6473; margin: 12px 0 4px; }
+  select, input {
+    width: 100%; padding: 7px 9px; border: 1px solid #cfd6e0; border-radius: 5px;
+    font-size: 13px; background: #fff; color: #1f2329;
+  }
+  input { font-family: Consolas, monospace; }
+  input:focus, select:focus { outline: none; border-color: #4a7fd4; }
+  .row { display: flex; gap: 8px; align-items: flex-end; }
+  .row .grow { flex: 1; }
+  button {
+    padding: 7px 14px; border: 1px solid #4a7fd4; background: #4a7fd4; color: #fff;
+    border-radius: 5px; cursor: pointer; font-size: 13px; font-family: inherit;
+  }
+  button:hover { background: #3c6cbe; }
+  button.ghost { background: #fff; color: #4a7fd4; }
+  button.ghost:hover { background: #eef3fc; }
+  .desc {
+    margin-top: 14px; padding: 10px 12px; background: #f7f9fc; border-left: 3px solid #4a7fd4;
+    font-size: 12px; color: #3d4756; line-height: 1.7; border-radius: 0 4px 4px 0;
+  }
+  .fields { margin-top: 6px; }
+  .fld { margin-bottom: 10px; }
+  .fld .hint { font-size: 11px; color: #8b94a3; margin-top: 3px; }
+  .err { color: #c0392b; font-size: 12px; margin-top: 8px; }
+  .hex {
+    font-family: Consolas, "Courier New", monospace; font-size: 15px; font-weight: 600;
+    color: #0b4f9c; word-break: break-all; line-height: 1.9;
+    background: #f2f6fc; border: 1px solid #d6e2f4; border-radius: 6px; padding: 12px;
+  }
+  .hex.plain { font-size: 13px; color: #1f2329; background: #fafbfc; border-color: #e3e8ef; font-weight: 500; }
+  .meta { font-size: 12px; color: #5a6473; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+  th, td { border: 1px solid #e3e8ef; padding: 6px 8px; text-align: left; }
+  th { background: #eef2f8; color: #1f3864; font-weight: 600; }
+  td.v { font-family: Consolas, monospace; color: #0b4f9c; }
+  .btns { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { display: inline-block; padding: 2px 8px; background: #eef3fc; color: #3c6cbe;
+         border-radius: 10px; font-size: 11px; margin-right: 6px; }
+  .warn { font-size: 11px; color: #96700a; background: #fff8e6; border: 1px solid #f2e2b6;
+          border-radius: 5px; padding: 8px 10px; margin-top: 12px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<h1>固存模块遥控指令填码工具</h1>
+<div class="sub">依据表 5-1 固存模块遥控指令格式定义 · 帧头 EB90 + 类型字 0F + 长度 n + 功能码 + 参数 + 累加和（n = 功能码+参数）</div>
+
+<div class="wrap">
+  <div class="card left">
+    <label>指令</label>
+    <select id="cmdSel"></select>
+
+    <div id="desc" class="desc"></div>
+
+    <div class="fields" id="fields"></div>
+
+    <label>累加和起点</label>
+    <select id="sumFrom">
+      <option value="type">不含帧头（从 0x0F 起，默认）</option>
+      <option value="head">含帧头（从 0xEB 起）</option>
+      <option value="len">从长度字起</option>
+      <option value="param">仅功能参数</option>
+    </select>
+
+    <div class="btns">
+      <button onclick="generate()">生成指令帧</button>
+      <button class="ghost" onclick="resetDefault()">恢复默认参数</button>
+    </div>
+    <div id="err" class="err"></div>
+  </div>
+
+  <div class="card right">
+    <div id="title"></div>
+    <label>指令帧（HEX，空格分隔）</label>
+    <div class="hex" id="hexOut">—</div>
+    <label>指令帧（连续串）</label>
+    <div class="hex plain" id="hexPlain">—</div>
+    <div class="meta" id="meta"></div>
+    <div class="btns">
+      <button class="ghost" onclick="copyHex(0)">复制 HEX</button>
+      <button class="ghost" onclick="copyHex(1)">复制连续串</button>
+      <button class="ghost" onclick="downloadBin()">下载 .bin</button>
+    </div>
+    <table id="bdTable"></table>
+    <div class="warn">
+      说明：有效数据长度 n = 功能码(2B) + 功能参数 P，即 n = P + 2；功能参数位于字节 8~n+5，
+      累加和位于第 n+6 字节（整帧 n+6 字节）。多字节字段一律大端（高字节在前）；功能参数末尾固定为结束标志字 0xAAAA。
+      累加和默认<b>不含帧头 EB90</b>（从类型字 0x0F 起累加，取低 8 位）；若总体规定含帧头，请在上侧切换为“含帧头（从 0xEB 起）”。
+    </div>
+  </div>
+</div>
+
+<script>
+// 与 cmd_gen_tool.py 中 CMD_LIST 保持一致
+const CMDS = [
+  {no:1, code:"0001", name:"输出载荷目录", desc:"输出当前指定目录下所有载荷目录名", note:"通过数传输出",
+   fields:[{ch:"M",n:3,def:"000001",label:"载荷类型（0xFFFFFF=全部）"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:2, code:"0002", name:"设置回放起点", desc:"设置指定载荷数据的回放起点", note:"载荷类型为 FF 时所有载荷均设为该偏置起点；超出存储最大值则置为最大值",
+   fields:[{ch:"M",n:3,def:"000001",label:"载荷类型（0xFFFFFF=全部）"},{ch:"K",n:2,def:"0000",label:"保留（协议未定义，建议 0x0000）"},{ch:"S",n:7,def:"00000000000000",label:"回放起始点（Byte）"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:3, code:"0012", name:"开始回放数据", desc:"开始回放指定载荷数据", note:"同类型重复下发数据量累加且不重复；V=0 表示回放至末地址或收到停止指令",
+   fields:[{ch:"M",n:3,def:"000001",label:"载荷类型（0xFFFFFF=按表 2-1 顺序）"},{ch:"K",n:2,def:"0001",label:"流水号"},{ch:"V",n:7,def:"00000000001000",label:"回放数据量（Byte，0=至末地址）"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:4, code:"0022", name:"选择回放", desc:"从指定偏置开始回放指定数据量的载荷数据", note:"",
+   fields:[{ch:"M",n:3,def:"000001",label:"载荷类型"},{ch:"K",n:2,def:"0001",label:"流水号"},{ch:"S",n:7,def:"00000000000000",label:"偏置起点（Byte）"},{ch:"V",n:7,def:"00000000001000",label:"回放数据量（Byte）"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:5, code:"0032", name:"终止回放", desc:"终止回放数据", note:"", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:6, code:"0042", name:"终止所有回放", desc:"终止所有回放数据：终止并清除队列", note:"", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:8, code:"0013", name:"删除载荷数据", desc:"删除指定载荷数据", note:"",
+   fields:[{ch:"M",n:3,def:"000001",label:"载荷类型"},{ch:"K",n:2,def:"0001",label:"文件序号"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:9, code:"0004", name:"记录开始", desc:"开始指定载荷记录", note:"", fields:[{ch:"M",n:3,def:"000001",label:"载荷类型"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:10, code:"0005", name:"记录停止", desc:"停止指定载荷记录", note:"", fields:[{ch:"M",n:3,def:"000001",label:"载荷类型"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:11, code:"0006", name:"上注数据包写", desc:"上注数据包写指令（专用指令）", note:"M=0x000001 对应 .INDATA（处理器转发数据），M=0x000002 对应 .INDATA1（Ku 高速上行数据）",
+   fields:[{ch:"M",n:3,def:"000001",label:"文件标识（1=INDATA，2=INDATA1）"},{ch:"K",n:2,def:"0001",label:"包序号"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:12, code:"0016", name:"上注数据包写停", desc:"上注数据包写停指令（专用指令）", note:"", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:13, code:"0007", name:"载荷数据选通", desc:"载荷数据选通指令", note:"0x01=屏蔽，0x10=选通，0x00=不操作，默认选通",
+   fields:[{ch:"M",n:3,def:"101010",label:"选通字（每字节一路载荷）"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:14, code:"A002", name:"路由 FPGA 复位", desc:"路由 FPGA 复位指令", note:"暂定", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:15, code:"A003", name:"路由 FPGA 重构使能", desc:"路由 FPGA 重构使能", note:"暂定", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:16, code:"A013", name:"路由 FPGA 重构开始", desc:"路由 FPGA 重构开始", note:"暂定", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:17, code:"A023", name:"路由 FPGA 重构校验", desc:"路由 FPGA 重构校验", note:"暂定", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:18, code:"A033", name:"路由 FPGA 重构结束", desc:"路由 FPGA 重构结束", note:"暂定", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:19, code:"A043", name:"路由 FPGA 重构区启动", desc:"路由 FPGA 重构区启动", note:"暂定", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:20, code:"A053", name:"路由 FPGA 重构区替换默认区", desc:"路由 FPGA 重构区替换默认区", note:"暂定", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:21, code:"B004", name:"固存 APP 重构使能", desc:"固存 APP 重构使能", note:"暂定", fields:[{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:22, code:"B014", name:"固存 APP 重构指定分区", desc:"固存 APP 重构指定分区", note:"Golden 区不可以被重构",
+   fields:[{ch:"Z",n:1,def:"11",label:"分区（11=Normal，22=Replace，33=Golden）"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:23, code:"B024", name:"固存 APP 启动选择", desc:"固存 APP 启动选择", note:"暂定",
+   fields:[{ch:"Z",n:1,def:"11",label:"分区（11=Normal，22=Replace，33=Golden）"},{ch:"A",n:2,def:"AAAA",label:"结束标志字"}]},
+  {no:"TM", code:"1E", name:"取常规遥测数据", desc:"遥测取数指令（0x1E），有效数据长度固定 0x0008", note:"时间码 6 字节 + 固定遥测 2 字节",
+   fields:[{ch:"T",n:6,def:"000000000000",label:"时间码"},{ch:"F",n:2,def:"0000",label:"固定遥测"}], tm:true},
+  {no:"CUSTOM", code:"0001", name:"自定义指令", custom:true,
+   desc:"功能码、功能参数全部由用户指定，仍按表 5-1 帧格式封装（n = 功能码2 + 参数P）",
+   note:"参数可留空（P=0，此时 n=2）", fields:[]}
+];
+
+// 指令名称统一加前缀（自定义指令除外）
+CMDS.forEach(c => { if (!c.custom) c.name = "固存APP " + c.name; });
+
+const SUM_FROM = {head:0, type:2, len:3, param:7};
+let current = null, lastFrame = null;
+
+function init() {
+  const sel = document.getElementById("cmdSel");
+  CMDS.forEach((c, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = c.custom ? "自定义  用户指定功能码/参数"
+                             : ((c.no === "TM" ? "TM" : "序号 " + c.no) + "  0x" + c.code + "  " + c.name);
+    sel.appendChild(o);
+  });
+  sel.addEventListener("change", onSelect);
+  onSelect();
+}
+
+function onSelect() {
+  current = CMDS[parseInt(document.getElementById("cmdSel").value, 10)];
+  document.getElementById("desc").innerHTML =
+    "<b>" + current.name + "</b><br>" + current.desc +
+    (current.note ? "<br><span style='color:#8b94a3'>备注：" + current.note + "</span>" : "");
+  renderFields();
+  generate();
+}
+
+function renderFields() {
+  const box = document.getElementById("fields");
+  box.innerHTML = "";
+  if (current.custom) {
+    box.appendChild(mkInput("cust_code", "功能码（2 字节 / 4 位 HEX）", current.code, "0001"));
+    box.appendChild(mkInput("cust_param", "功能参数（任意长度 HEX，可为空）", "", "0000010001AAAA"));
+    return;
+  }
+  current.fields.forEach(f => {
+    const div = document.createElement("div");
+    div.className = "fld";
+    div.innerHTML = "<label>" + f.ch + " 字段（" + f.n + " 字节 / " + (f.n * 2) + " 位十六进制）&nbsp;" + f.label + "</label>";
+    if (f.ch === "T") {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = "<div class='grow'><input id='fld_" + f.ch + "' value='" + f.def + "' maxlength='" + (f.n * 2) + "'></div>";
+      const b = document.createElement("button");
+      b.className = "ghost"; b.textContent = "当前UTC秒";
+      b.onclick = () => { document.getElementById("fld_T").value = nowTimeCode(); generate(); };
+      row.appendChild(b);
+      div.appendChild(row);
+    } else {
+      const inp = document.createElement("input");
+      inp.id = "fld_" + f.ch;
+      inp.value = f.def;
+      inp.maxLength = f.n * 2;
+      inp.addEventListener("input", generate);
+      div.appendChild(inp);
+    }
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "格式：" + f.ch.repeat(2 * f.n) + "（当前 " + f.def + "）";
+    div.appendChild(hint);
+    box.appendChild(div);
+  });
+}
+
+function mkInput(id, label, val, ph) {
+  const div = document.createElement("div");
+  div.className = "fld";
+  div.innerHTML = "<label>" + label + "</label>";
+  const inp = document.createElement("input");
+  inp.id = id; inp.value = val; inp.placeholder = ph;
+  inp.addEventListener("input", generate);
+  div.appendChild(inp);
+  const hint = document.createElement("div");
+  hint.className = "hint";
+  hint.textContent = "示例：" + ph;
+  div.appendChild(hint);
+  return div;
+}
+
+function resetDefault() {
+  if (current.custom) {
+    document.getElementById("cust_code").value = "0001";
+    document.getElementById("cust_param").value = "";
+    generate();
+    return;
+  }
+  current.fields.forEach(f => { document.getElementById("fld_" + f.ch).value = f.def; });
+  generate();
+}
+
+function nowTimeCode() {
+  const epoch = Date.UTC(2020, 0, 1, 0, 0, 0);
+  let s = Math.floor((Date.now() - epoch) / 1000);
+  return (s >>> 0 === s ? s : s).toString(16).toUpperCase().padStart(12, "0").slice(-12);
+}
+
+function parseField(f) {
+  const el = document.getElementById("fld_" + f.ch);
+  let s = el.value.trim().toLowerCase().replace(/0x/g, "").replace(/[\s_]/g, "");
+  if (!/^[0-9a-f]+$/.test(s)) throw new Error("字段 " + f.ch + " 含非法字符，只允许十六进制");
+  let v = parseInt(s, 16);
+  if (!isFinite(v)) throw new Error("字段 " + f.ch + " 解析失败");
+  // 只校验数值范围（与 cmd_gen_tool.py 一致），允许前导零
+  if (v >= Math.pow(256, f.n)) throw new Error("字段 " + f.ch + " 超出 " + f.n + " 字节范围");
+  return v;
+}
+
+function bytesOf(v, n) {
+  // 用除法而非位运算：JS 位运算仅 32 位，7 字节字段会被截断
+  const a = [];
+  for (let i = n - 1; i >= 0; i--) a.push(Math.floor(v / Math.pow(256, i)) % 256);
+  return a;
+}
+
+function generate() {
+  const err = document.getElementById("err");
+  err.textContent = "";
+  let bytes = [];
+  try {
+    if (current.tm) {
+      const t = parseField(current.fields[0]), fx = parseField(current.fields[1]);
+      bytes = [0xEB, 0x90, 0x1E, 0x00, 0x08].concat(bytesOf(t, 6)).concat(bytesOf(fx, 2));
+    } else if (current.custom) {
+      const codeHex = normHex(document.getElementById("cust_code").value);
+      const pHex = normHex(document.getElementById("cust_param").value);
+      if (!/^[0-9a-f]{4}$/.test(codeHex)) throw new Error("功能码必须为 4 位十六进制（2 字节）");
+      if (pHex.length % 2 !== 0) throw new Error("功能参数必须为偶数位十六进制字符");
+      const params = [];
+      for (let i = 0; i < pHex.length; i += 2) params.push(parseInt(pHex.substr(i, 2), 16));
+      // 有效数据长度 n = 功能码(2) + 功能参数(P)
+      const n = 2 + params.length;
+      current.code = codeHex.toUpperCase();
+      current.fields = params.length
+        ? [{ch:"P", n:params.length, def:pHex.toUpperCase(), label:"自定义功能参数"}]
+        : [];
+      bytes = [0xEB, 0x90, 0x0F, (n >> 8) & 0xFF, n & 0xFF,
+               parseInt(codeHex.substr(0, 2), 16), parseInt(codeHex.substr(2, 2), 16)
+              ].concat(params);
+    } else {
+      const params = [];
+      current.fields.forEach(f => { params.push.apply(params, bytesOf(parseField(f), f.n)); });
+      // 有效数据长度 n = 功能码(2) + 功能参数(P)
+      const n = 2 + params.length;
+      bytes = [0xEB, 0x90, 0x0F, (n >> 8) & 0xFF, n & 0xFF,
+               parseInt(current.code.slice(0, 2), 16), parseInt(current.code.slice(2, 4), 16)
+              ].concat(params);
+    }
+  } catch (e) {
+    err.textContent = e.message;
+    return;
+  }
+  const from = SUM_FROM[document.getElementById("sumFrom").value];
+  let sum = 0;
+  for (let i = from; i < bytes.length; i++) sum = (sum + bytes[i]) & 0xFF;
+  bytes.push(sum);
+  lastFrame = bytes;
+  render(bytes, sum);
+}
+
+function normHex(v) {
+  return String(v === undefined || v === null ? "" : v).trim().toLowerCase().replace(/0x/g, "").replace(/[\s_]/g, "");
+}
+
+function hex2(b) { return b.toString(16).toUpperCase().padStart(2, "0"); }
+
+function render(bytes, sum) {
+  const spaced = bytes.map(hex2).join(" ");
+  document.getElementById("hexOut").textContent = spaced;
+  document.getElementById("hexPlain").textContent = bytes.map(hex2).join("");
+  document.getElementById("title").innerHTML =
+    "<span class='tag'>" + (current.custom ? "自定义指令" : (current.tm ? "遥测取数" : "序号 " + current.no)) + "</span>" +
+    "<span class='tag'>功能码 0x" + current.code + "</span>" +
+    "<span class='tag'>" + current.name + "</span>";
+  const p = current.fields.reduce((a, f) => a + f.n, 0);
+  const n = current.tm ? 8 : 2 + p;
+  document.getElementById("meta").textContent =
+    "帧长 " + bytes.length + " 字节　|　有效数据长度 n = " + n + " (0x" + hex2((n >> 8) & 0xFF) + hex2(n & 0xFF) +
+    ")　|　功能参数 P = " + (current.tm ? 8 : p) + " 字节（" + (current.tm ? "时间码6+固定遥测2" : "n = P + 2") +
+    "）　|　累加和 0x" + hex2(sum) + "（起点：" + document.getElementById("sumFrom").selectedOptions[0].text + "）";
+
+  // 字节分解
+  let rows = "<tr><th>字节</th><th>字段</th><th>值(HEX)</th><th>说明</th></tr>";
+  const add = (pos, name, val, note) => { rows += "<tr><td>" + pos + "</td><td>" + name + "</td><td class='v'>" + val + "</td><td>" + note + "</td></tr>"; };
+  add("1~2", "帧头", hex2(bytes[0]) + " " + hex2(bytes[1]), "0xEB90");
+  if (current.tm) {
+    add("3", "取常规遥测数据", hex2(bytes[2]), "0x1E");
+    add("4~5", "有效数据长度", hex2(bytes[3]) + " " + hex2(bytes[4]), "固定 0x0008");
+    let off = 5;
+    current.fields.forEach(f => {
+      const seg = bytes.slice(off, off + f.n).map(hex2).join(" ");
+      const pos = f.n > 1 ? (off + 1) + "~" + (off + f.n) : String(off + 1);
+      add(pos, f.ch + " " + f.label.split("（")[0], seg, f.label);
+      off += f.n;
+    });
+  } else {
+    add("3", "遥控指令/注数", hex2(bytes[2]), "0x0F");
+    add("4~5", "有效数据长度 n", hex2(bytes[3]) + " " + hex2(bytes[4]),
+        "n=" + n + " = 功能码2 + 参数" + p);
+    add("6~7", "功能码", hex2(bytes[5]) + " " + hex2(bytes[6]), "0x" + current.code + " " + current.name);
+    let off = 7;
+    current.fields.forEach(f => {
+      const seg = bytes.slice(off, off + f.n).map(hex2).join(" ");
+      const pos = f.n > 1 ? (off + 1) + "~" + (off + f.n) : String(off + 1);
+      add(pos, f.ch + " " + f.label.split("（")[0], seg, f.label);
+      off += f.n;
+    });
+  }
+  add(current.tm ? String(bytes.length) : (bytes.length + " (n+6)"), "累加和",
+      hex2(bytes[bytes.length - 1]), "低 8 位");
+  document.getElementById("bdTable").innerHTML = rows;
+}
+
+function copyHex(mode) {
+  if (!lastFrame) return;
+  const txt = mode === 0 ? lastFrame.map(hex2).join(" ") : lastFrame.map(hex2).join("");
+  navigator.clipboard.writeText(txt).then(() => {
+    const b = event.target; const old = b.textContent;
+    b.textContent = "已复制"; setTimeout(() => { b.textContent = old; }, 1200);
+  });
+}
+
+function downloadBin() {
+  if (!lastFrame) return;
+  const blob = new Blob([new Uint8Array(lastFrame)], {type: "application/octet-stream"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (current.tm ? "TM" : (current.custom ? "CUSTOM_0x" + current.code
+                : "CMD" + current.no + "_0x" + current.code)) + ".bin";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+init();
+</script>
+</body>
+</html>
