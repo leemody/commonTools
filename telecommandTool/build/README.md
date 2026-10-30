@@ -27,7 +27,8 @@ python src/web_server.py
 python -B -m unittest discover -s src/tests -t src -v
 ```
 
-统一发布名称为 `dist\TelecommandTool.exe`，Win7版为 `dist\TelecommandTool-Win7-x64.exe`。打包前关闭相应程序的服务窗口，避免文件占用；不再把 `-fixed` 作为日常版本名称。构建脚本将自动生成的spec文件放在构建目录。
+统一发布名称为 `dist\TelecommandTool-V<version>.exe`，Win7版为 `dist\TelecommandTool-Win7-x64-V<version>.exe`。打包前关闭相应程序的服务窗口，避免文件占用；不再把 `-fixed` 作为日常版本名称。构建脚本将自动生成的spec文件放在构建目录。
+Each packaging run increments the final version component before building and uses that version in the EXE filename.
 
 清理构建缓存及历史修复产物：
 
@@ -56,7 +57,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build\clean.ps1
    powershell -NoProfile -ExecutionPolicy Bypass -File .\build\build-win7.ps1 -PythonPath C:\Python38\python.exe
    ```
 
-输出文件为 `dist\TelecommandTool-Win7-x64.exe`。目标电脑还应安装 Windows 7 SP1 和系统可用的最后一批更新。由于 Windows 7 和 Python 3.8 均已停止官方维护，该版本仅用于兼容无法升级的设备。
+输出文件为 `dist\TelecommandTool-Win7-x64-V<version>.exe`。目标电脑还应安装 Windows 7 SP1 和系统可用的最后一批更新。由于 Windows 7 和 Python 3.8 均已停止官方维护，该版本仅用于兼容无法升级的设备。
 
 ### Windows 10/11 版
 
@@ -75,11 +76,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build\clean.ps1
    powershell -NoProfile -ExecutionPolicy Bypass -File .\build\build.ps1
    ```
 
-完成后，可执行文件位于 `dist\TelecommandTool.exe`。将这个 `.exe` 复制到目标 Windows 电脑即可使用；`index.html`、全部帧生成模块及公共模块已打包在其中。每次修改页面或 Python 代码后，重新运行上述打包命令。
+完成后，可执行文件位于 `dist\TelecommandTool-V<version>.exe`。将这个 `.exe` 复制到目标 Windows 电脑即可使用；`index.html`、全部帧生成模块及公共模块已打包在其中。每次修改页面或 Python 代码后，重新运行上述打包命令。
 
 ## 如何使用
 
-1. 双击 `TelecommandTool.exe`。程序会启动本地服务，并在默认浏览器打开 `http://127.0.0.1:8000`。如果浏览器没有自动打开，可手动输入该地址。
+1. 双击 `TelecommandTool-V<version>.exe`。程序会启动本地服务，并在默认浏览器打开 `http://127.0.0.1:8000`。如果浏览器没有自动打开，可手动输入该地址。
 2. 选择“普通遥控帧”“ST11 时间调度”“直接指令”“高速遥控”或“高速空闲帧”，填写参数后点击“生成帧”。数值支持十进制或 `0x` 开头的十六进制；字节串输入十六进制，可用空格分隔。
 3. 在右侧查看帧长度和 HEX 内容。可点击“复制 HEX”或“下载 .bin”获取结果。
 4. 关闭程序窗口即可停止服务。若 8000 端口已被占用，请先关闭占用该端口的程序。

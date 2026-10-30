@@ -48,13 +48,14 @@ try {
     $frontendPath = Join-Path $projectRoot 'frontend'
     if (-not (Test-Path -LiteralPath (Join-Path $frontendPath 'image.png'))) { throw 'Missing image.png.' }
     $versionUpdater = Join-Path $PSScriptRoot 'increment-version.ps1'
-    & $versionUpdater -IndexPath $indexPath
+    $version = & $versionUpdater -IndexPath $indexPath
+    $exeName = "TelecommandTool-Win7-x64-V$version"
     & $PythonPath -B -m PyInstaller --noconfirm --clean --onefile --console --noupx `
-        --name TelecommandTool-Win7-x64 --distpath dist --workpath build/work-win7 `
+        --name $exeName --distpath dist --workpath build/work-win7 `
         --specpath build/spec-win7 --add-data "$frontendPath;frontend" src/web_server.py
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed: $LASTEXITCODE" }
 
-    $exePath = Join-Path $projectRoot 'dist\TelecommandTool-Win7-x64.exe'
+    $exePath = Join-Path $projectRoot ('dist\' + $exeName + '.exe')
     if (-not (Test-Path -LiteralPath $exePath)) { throw 'Build did not produce the executable.' }
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Filter '*.py')
     $sources += Get-ChildItem -LiteralPath $frontendPath -File
@@ -69,12 +70,13 @@ try {
         target = 'Windows 7 SP1 x64'
         python = ($runtime.version -join '.')
         pyinstaller = '5.13.2'
-        executable = 'TelecommandTool-Win7-x64.exe'
+        version = "V$version"
+        executable = ($exeName + '.exe')
         sha256 = (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash
         source_sha256 = $sourceHashes
         validation = 'Python 3.8 import and regression tests passed; target OS acceptance required.'
     }
-    $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $projectRoot 'dist\TelecommandTool-Win7-x64.build.json') -Encoding UTF8
+    $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $projectRoot ('dist\' + $exeName + '.build.json')) -Encoding UTF8
     Write-Host "Built: $exePath"
     Write-Host 'Target: Windows 7 SP1 x64. Verify startup and browser operation on the target PC.'
 } finally {

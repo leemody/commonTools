@@ -15,3 +15,4 @@ $replacement = '{0}{1}{2}' -f $match.Groups[1].Value, $version, $match.Groups[5]
 $content = $content.Substring(0, $match.Index) + $replacement + $content.Substring($match.Index + $match.Length)
 [IO.File]::WriteAllText($IndexPath, $content, [Text.UTF8Encoding]::new($false))
 Write-Host "Updated application version to V$version"
+Write-Output $version

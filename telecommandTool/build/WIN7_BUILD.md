@@ -16,8 +16,9 @@
 
 构建会检查应用导入、运行src/tests中的回归测试，随后将最新frontend/index.html和所有生成模块打包。输出：
 
-- `dist\TelecommandTool-Win7-x64.exe`：单文件程序，目标机无需安装Python。
-- `dist\TelecommandTool-Win7-x64.build.json`：构建版本、源码哈希和EXE SHA256，便于确认是否拿到了最新文件。
+- `dist\TelecommandTool-Win7-x64-V<version>.exe`：单文件程序，目标机无需安装Python。
+The build script increments the final version component before packaging and uses the new version in both output filenames.
+- `dist\TelecommandTool-Win7-x64-V<version>.build.json`：构建版本、源码哈希和EXE SHA256，便于确认是否拿到了最新文件。
 
 把EXE复制到Win7电脑后运行，浏览器访问`http://127.0.0.1:8000`；关闭服务窗口即可退出。端口8000应未被其他版本占用。页面使用现代JavaScript，请使用支持该页面语法/API的浏览器，不支持Win7自带IE。EXE兼容性和浏览器兼容性需分别确认。
 
