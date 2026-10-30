@@ -288,7 +288,7 @@ function generate() {
       current.fields = params.length
         ? [{ch:"P", n:params.length, def:pHex.toUpperCase(), label:"自定义功能参数"}]
         : [];
-      bytes = [0xEB, 0x90, 0x0F, (n >> 8) & 0xFF, n & 0xFF,
+      bytes = [0xEB, 0x90, 0x0E, (n >> 8) & 0xFF, n & 0xFF,
                parseInt(codeHex.substr(0, 2), 16), parseInt(codeHex.substr(2, 2), 16)
               ].concat(params);
     } else {
