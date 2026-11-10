@@ -51,6 +51,7 @@ try {
     $version = & $versionUpdater -IndexPath $indexPath
     $exeName = "TelecommandTool-Win7-x64-V$version"
     & $PythonPath -B -m PyInstaller --noconfirm --clean --onefile --console --noupx `
+        --exclude-module rebuild_uslp_dsl_frame `
         --name $exeName --distpath dist --workpath build/work-win7 `
         --specpath build/spec-win7 --add-data "$frontendPath;frontend" src/web_server.py
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed: $LASTEXITCODE" }

@@ -45,6 +45,25 @@ def build_high_speed_frame(*, app_data: bytes = b'',
                        profile=high_speed_profile(vcid=vcid, map_id=map_id))
 
 
+PROGRAMMING_DATA_RECORD_SIZE = 522
+
+
+def build_measurement_programming_data_file(data: bytes) -> bytes:
+    """Build one independent high-speed frame per fixed 522-byte programming record."""
+    if not isinstance(data, bytes) or not data:
+        raise ValueError("测控编程数据文件不能为空")
+    if len(data) % PROGRAMMING_DATA_RECORD_SIZE:
+        raise ValueError("测控编程数据文件长度必须是522字节的整数倍")
+    output = bytearray()
+    for offset in range(0, len(data), PROGRAMMING_DATA_RECORD_SIZE):
+        record = data[offset:offset + PROGRAMMING_DATA_RECORD_SIZE]
+        output.extend(build_high_speed_frame(
+            app_data=b"\x5F\x01" + record,
+            scid=0xFF01, vcf_count=0, pid=49, pcat=0x03,
+            map_id=14, sequence_count=0, sequence_flags=3, vcid=10,
+        ))
+    return bytes(output)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     integer = lambda value: int(value, 0)

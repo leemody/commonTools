@@ -156,6 +156,31 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        if self.path == "/api/export/measurement-programming-data":
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                if size < 1 or size > 64 * 1024 * 1024:
+                    raise ValueError("测控编程数据文件须为1字节至64 MiB")
+                source = self.rfile.read(size)
+                if len(source) != size:
+                    raise ValueError("测控编程数据文件读取不完整")
+                body = high.build_measurement_programming_data_file(source)
+                status = 200
+                content_type = "application/octet-stream"
+                filename = "measurement_control_programming_frames.dat"
+            except (ValueError, TypeError, OverflowError) as exc:
+                body = json.dumps({"error": str(exc)}, ensure_ascii=False).encode()
+                status = 400
+                content_type = "application/json; charset=utf-8"
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            if status == 200:
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.send_header("X-Frame-Count", str(len(body) // high.FRAME_SIZE))
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path in ("/api/export/excel", "/api/export/422-bin"):
             try:
                 size = int(self.headers.get("Content-Length", "0"))
