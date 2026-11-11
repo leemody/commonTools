@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>在轨编程上注使用说明 &#183; V1.0.5</title><style>:root{font-family:system-ui,"Microsoft YaHei",sans-serif;color:#172235;background:#f4f7fb}*{box-sizing:border-box}body{margin:0;line-height:1.7}header{background:#142740;color:#fff;padding:20px max(20px,calc((100vw - 1050px)/2))}header h1{font-size:22px;margin:0}header p{margin:4px 0 0;color:#c5d5e8;font-size:13px}main{max-width:1050px;margin:24px auto;padding:28px 32px;background:#fff;border:1px solid #dce5ef;border-radius:12px;box-shadow:0 4px 18px #1427400b}h2{margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid #dce5ef;font-size:20px}h3{margin:18px 0 8px;font-size:16px}p{margin:10px 0}ul,ol{padding-left:24px}li{margin:4px 0}code{font-family:Consolas,monospace;background:#eef3f8;border-radius:4px;padding:1px 5px;color:#0d4d8b}.table-wrap{overflow-x:auto;margin:14px 0}table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:9px 10px;border:1px solid #dce5ef;text-align:left;vertical-align:top}th{background:#f2f6fb}blockquote{margin:12px 0;padding:10px 14px;border-left:4px solid #1761b8;background:#f2f7fd;color:#45536b}@media(max-width:600px){main{margin:12px;padding:18px 14px}header{padding:16px}h2{font-size:18px}table{font-size:12px}th,td{padding:7px}}</style></head><body><header><h1>在轨编程上注使用说明</h1><p>&#36866;&#29992;&#29256;&#26412; V1.0.5 &#183; &#31163;&#32447;&#24110;&#21161;&#39029;&#38754;</p></header><main><h1>在轨编程上注使用说明</h1>
+<p>适用版本：<strong>V1.0.5</strong>（及后续保持相同页面和组帧规则的版本）</p>
+<p>本页用于选择一个二进制文件，按指定行长拆分后批量生成高速遥控帧。生成结果只供检查和导出，不会自动发送到设备。</p>
+<h2>固存测试建议</h2>
+<p>测试固存时，将 <strong>PID 设置为 <code>0x0A</code></strong>。其余参数建议先使用页面默认值：</p>
+<ul>
+<li>SCID：<code>0xFF01</code></li>
+<li>VCF：<code>0</code></li>
+<li>PCAT：<code>0x03</code></li>
+<li>VCID：<code>10</code></li>
+<li>MAP ID：<code>14</code></li>
+<li>分段标志：<code>11 · 独立包</code></li>
+<li>包序列计数：<code>0</code>（只读）</li>
+<li>添加422格式：不勾选</li>
+<li>每行读取字节长度：勾选，<code>962</code> 字节</li>
+</ul>
+<p>PID 与 PCAT 一起构成 APID：<code>APID = (PID &lt;&lt; 4) | PCAT</code>。例如 PID=<code>0x0A</code>、PCAT=<code>0x03</code> 时，APID 为 <code>0x0A3</code>。导出文件名会以 <code>APID_0x0A3_</code> 起始。</p>
+<blockquote>PID 是 7 位字段，页面支持十进制和 <code>0x</code> 十六进制输入。输入 <code>0x0A</code> 即 PID 十进制 10。请根据测试对象要求核对 PCAT；本说明中的默认 PCAT 是 <code>0x03</code>。</blockquote>
+<h2>建议操作步骤</h2>
+<ol>
+<li>打开 <strong>在轨编程上注</strong> 页面，选择目标文件。</li>
+<li>固存测试时把 PID 改为 <code>0x0A</code>；确认 PCAT=<code>0x03</code>，其余按“固存测试建议”使用默认值。</li>
+<li>保持“添加422帧格式”未勾选；保持“每行读取字节长度”勾选，填 <code>962</code>。</li>
+<li>点击“生成帧”，等待状态从“正在批量生成”变为帧数和每帧长度摘要。</li>
+<li>用帧选择框检查首帧、中间帧和尾帧，确认 APID、VCF、分段标志及尾部 <code>AA</code> 填充符合测试要求。</li>
+<li>按交付接口选择下载：交付瑞信丰时，点击“下载上注用指令（.dat）”，生成单个连续高速帧文件；需要表格检查时用 <code>.xlsx</code>。仅需应用数据时使用“逐帧下载数据区”。</li>
+</ol>
+<p>下载文件只包含生成结果，不包含上传的原始文件副本或页面日志。工具输出为未加扰、未做信道编码且不含 CLTU 的原始帧。</p>
+<h2>页面参数</h2>
+<div class="table-wrap"><table><thead><tr><th>参数</th><th>页面默认值</th><th>说明与可选范围</th></tr></thead><tbody>
+<tr><td>上注文件</td><td>未选择</td><td>选择要组帧的原始二进制文件。此模式不提供应用数据 HEX 输入。服务端单文件上限为 64 MiB。</td></tr>
+<tr><td>SCID</td><td><code>0xFF01</code></td><td>16 位航天器标识，随页面请求传入；除非地面/星上接口另有要求，建议保留默认值。</td></tr>
+<tr><td>VCF 帧计数</td><td><code>0</code></td><td>8 位帧计数值，范围 <code>0..255</code>。<strong>在轨编程的所有生成帧都使用同一个 VCF，不会逐帧递增</strong>。</td></tr>
+<tr><td>PID</td><td><code>2</code></td><td>PUS APID 的 PID 部分，范围 <code>0..127</code>。固存测试按要求改为 <code>0x0A</code>。</td></tr>
+<tr><td>PCAT</td><td><code>0x03</code></td><td>APID 的 PCAT 部分，范围 <code>0..15</code>。默认即可，除非测试规程指定其他值。</td></tr>
+<tr><td>VCID</td><td><code>10</code></td><td>高速虚拟信道，可选 <code>10、5、4、63</code>。建议默认 <code>10</code>。</td></tr>
+<tr><td>MAP ID</td><td><code>14</code></td><td>MAP 标识，可选 <code>14</code>（大容量数据）或 <code>1</code>（指令/注入）。建议默认 <code>14</code>。</td></tr>
+<tr><td>分段标志</td><td><code>11 · 独立包</code></td><td>默认 <code>11</code> 时每一帧都作为独立包，包序列计数固定为 <code>0</code>。选择其他标志时，多帧按首段、延续段、尾段设置 <code>01、00、10</code>，包序列计数按帧递增；单帧仍按独立包生成。</td></tr>
+<tr><td>包序列计数</td><td><code>0</code>（只读）</td><td>页面显示基础计数，但当前不可编辑。选择 <code>11</code> 时所有帧均为 <code>0</code>；选择其他分段标志时，多帧包的计数依次递增。</td></tr>
+<tr><td>添加422帧格式（0XEB90）</td><td>不勾选</td><td>勾选后，每帧应用数据在 <code>5F01</code> 后加 <code>EB 90 0F</code>、2字节有效数据长度、该帧文件数据和1字节累加和。累加和覆盖 <code>0F + 长度 + 文件数据</code>，不包含 <code>EB 90</code>。勾选后每行文件数据最多 <code>956</code> 字节；不勾选时保留 <code>5F01</code>，每行最多 <code>962</code> 字节。建议按固存测试默认关闭。</td></tr>
+<tr><td>每行读取字节长度</td><td>勾选，<code>962</code></td><td>勾选时按输入字节数拆分，422关闭时范围为 <code>1..962</code>，422开启时范围为 <code>1..956</code>；关闭时自动采用最大行长：422关闭时 <code>962</code> 字节，422开启时 <code>956</code> 字节。建议保留默认的勾选和 <code>962</code>。</td></tr>
+</tbody></table></div>
+<p>页面通用的“刷新当前页”按钮会清除当前页文件、参数和生成结果，并把在轨编程设置恢复为上述默认值。切换到其他功能后再切回在轨编程，页面会保留上一次输入和设置。</p>
+<h2>组帧和填充规则</h2>
+<ul>
+<li>每个输出高速帧固定 <strong>1020 字节</strong>；帧内 TFDZ 为 977 字节。</li>
+<li>PUS 主导头、副导头和包 ECF 共占 13 字节，留给应用数据最多 964 字节。</li>
+<li>不勾选输入侧422时，应用数据为 <code>5F 01 + 文件数据</code>，因此每帧最多读取 962 字节文件内容。</li>
+<li>勾选输入侧422时，应用数据为 <code>5F 01 + EB 90 0F + 长度(2字节) + 文件数据 + 累加和(1字节)</code>，每帧最多读取 956 字节文件内容。</li>
+<li>勾选固定行长后，最后一段不足所填行长时先用 <code>AA</code> 补到行长；帧内剩余空间再按帧格式补 <code>AA</code>。未勾选固定行长时，最后一段按实际长度写入，剩余帧空间仍由帧生成器补 <code>AA</code>。</li>
+<li>若文件长度正好整除行长，不会额外生成空帧。空文件会生成一帧仅含 <code>5F01</code> 的有效应用数据帧。</li>
+<li>当前批量生成接口单文件限制为 64 MiB、最多 100,000 帧。输出帧按文件读取顺序排列。</li>
+</ul>
+<h2>生成结果区和按钮</h2>
+<p>多帧结果使用“选择帧”下拉框浏览。下拉框只改变当前预览和复制操作所针对的帧；批量下载按钮仍按完整帧序列导出。</p>
+<div class="table-wrap"><table><thead><tr><th>按钮</th><th>导出内容</th><th>文件数量及命名</th></tr></thead><tbody>
+<tr><td>复制整帧 HEX</td><td>复制当前选中帧的完整 1020 字节十六进制文本，包含帧头、PUS、数据区、填充和帧校验字段。</td><td>不生成文件。</td></tr>
+<tr><td>复制数据区 HEX</td><td>复制当前帧 PUS 包中的应用数据，不含 PUS 主/副导头和包 ECF。输入侧422关闭时内容以 <code>5F01</code> 开始；开启时还包含 <code>EB900F</code> 封装。</td><td>不生成文件。</td></tr>
+<tr><td>逐帧下载（.bin）</td><td>每帧完整的 1020 字节二进制高速帧。</td><td>每帧一个 BIN；多帧文件名按 <code>_1</code>、<code>_2</code>…编号。下载前会确认文件数量。</td></tr>
+<tr><td>逐帧下载数据区（.bin）</td><td>每帧的应用数据字节，不含帧头、安全区、PUS 主/副导头和包 ECF；包含应用层 <code>5F01</code>，若启用了输入侧422也包含该422封装。</td><td>每帧一个 BIN；文件名带 <code>_data</code> 和分包序号。下载前会确认文件数量。</td></tr>
+<tr><td>下载上注用指令（.xlsx）</td><td>一个 Excel 文件，含“整帧数据”“TFDF有效数据”“422数据”三个工作表，每帧一行。第三张表按 <code>EB 90 0E + 长度 + 3字节TFDF导头 + TFDF数据 + 累加和</code> 生成。尾帧会包含完整 TFDZ 和 <code>AA</code> 填充。</td><td>一个 XLSX。此导出422格式独立于上方“添加422帧格式”勾选项。</td></tr>
+<tr><td>下载 422 BIN</td><td>将每帧对应的 <code>EB 90 0E</code> 格式数据按帧顺序连续写入同一个 BIN。内容含3字节 TFDF 导头；尾帧含完整 TFDZ 和填充。</td><td>一个 BIN。此导出也独立于输入侧422勾选项。</td></tr>
+<tr><td>下载上注用指令（.dat）</td><td>把所有完整 1020 字节高速帧按帧序合并为一个 DAT 文件。</td><td>一个 DAT，供瑞信丰使用的单个连续高速帧文件。</td></tr>
+</tbody></table></div>
+<p>以上导出按钮点击后会弹出确认框，显示将下载的文件数量；确认后浏览器开始下载。若浏览器阻止多个自动下载，请允许此站点下载多个文件。文件名前缀由当前 PID 和 PCAT 计算，例如固存测试 <code>PID=0x0A</code>、<code>PCAT=0x03</code> 时以 <code>APID_0x0A3_</code> 开始。页面参数不合法时，文件名前缀可能显示为 <code>APID_UNKNOWN_</code>。</p></main></body></html>

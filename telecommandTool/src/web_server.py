@@ -139,6 +139,7 @@ class Handler(BaseHTTPRequestHandler):
         resources = {
             "/": (PAGE, "text/html; charset=utf-8"),
             "/image.png": (PAGE.with_name("image.png"), "image/png"),
+            "/orbit-programming-guide.html": (PAGE.with_name("orbit-programming-guide.html"), "text/html; charset=utf-8"),
         }
         resource = resources.get(self.path)
         if resource is None:
