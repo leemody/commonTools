@@ -12,6 +12,7 @@ import low_speed_telecommand_frame_generator as low
 import time_schedule_telecommand_frame_generator as schedule
 import direct_command_frame_generator as direct
 import high_speed_frame_generator as high
+import orbit_programming_uplink as orbit
 import high_speed_idle_frame_generator as idle
 from excel_export import create_high_upload_422_binary, create_high_upload_workbook, create_low_upload_workbook
 
@@ -156,6 +157,46 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        if self.path == "/api/generate/orbit-programming-upload":
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                if size < 0 or size > orbit.MAX_UPLOAD_BYTES:
+                    raise ValueError(f"在轨编程文件不能超过{orbit.MAX_UPLOAD_BYTES // (1024 * 1024)} MiB")
+                source = self.rfile.read(size)
+                if len(source) != size:
+                    raise ValueError("在轨编程文件读取不完整")
+                params = json.loads(self.headers.get("X-Frame-Parameters", "{}"))
+                if not isinstance(params, dict):
+                    raise ValueError("帧参数格式错误")
+                body = orbit.build_orbit_programming_frames(
+                    source,
+                    scid=number(params, "scid", "0xFF01"),
+                    vcf_count=number(params, "vcf", 0),
+                    pid=number(params, "pid", 2),
+                    pcat=number(params, "pcat", 3),
+                    vcid=number(params, "vcid", 10),
+                    map_id=number(params, "map_id", 14),
+                    sequence_count=number(params, "sequence_count", 0),
+                    sequence_flags=number(params, "sequence_flags", 3),
+                    add_422=params.get("add_422", False),
+                    line_length_enabled=params.get("line_length_enabled", True),
+                    line_length=number(params, "line_length", 962),
+                )
+                status = 200
+                content_type = "application/octet-stream"
+            except (ValueError, TypeError, OverflowError, json.JSONDecodeError) as exc:
+                body = json.dumps({"error": str(exc)}, ensure_ascii=False).encode()
+                status = 400
+                content_type = "application/json; charset=utf-8"
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            if status == 200:
+                self.send_header("X-Frame-Count", str(len(body) // high.FRAME_SIZE))
+                self.send_header("X-Frame-Size", str(high.FRAME_SIZE))
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/api/export/measurement-programming-data":
             try:
                 size = int(self.headers.get("Content-Length", "0"))
