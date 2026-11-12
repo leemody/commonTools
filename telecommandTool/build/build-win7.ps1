@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$PythonPath = $env:TELECOMMAND_WIN7_PYTHON
 )
 
@@ -47,8 +47,11 @@ try {
     if (-not (Test-Path -LiteralPath $indexPath)) { throw 'Missing index.html.' }
     $frontendPath = Join-Path $projectRoot 'frontend'
     if (-not (Test-Path -LiteralPath (Join-Path $frontendPath 'image.png'))) { throw 'Missing image.png.' }
-    $versionUpdater = Join-Path $PSScriptRoot 'increment-version.ps1'
-    $version = & $versionUpdater -IndexPath $indexPath
+    # Win7 builds reuse the current product version; only the regular build increments it.
+    $versionPattern = '(class="header-version">[^<]*?V)(\d+\.\d+\.\d+)(</p>)'
+    $versionMatch = [regex]::Match([IO.File]::ReadAllText($indexPath), $versionPattern)
+    if (-not $versionMatch.Success) { throw 'Cannot read the current application version.' }
+    $version = $versionMatch.Groups[2].Value
     $exeName = "TelecommandTool-Win7-x64-V$version"
     & $PythonPath -B -m PyInstaller --noconfirm --clean --onefile --console --noupx `
         --exclude-module rebuild_uslp_dsl_frame `
@@ -61,7 +64,6 @@ try {
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Filter '*.py')
     $sources += Get-ChildItem -LiteralPath $frontendPath -File
     $sources += Get-Item -LiteralPath (Join-Path $PSScriptRoot 'build-win7.ps1')
-    $sources += Get-Item -LiteralPath $versionUpdater
     $sourceHashes = @{}
     foreach ($source in $sources) {
         $sourceHashes[$source.Name] = (Get-FileHash -LiteralPath $source.FullName -Algorithm SHA256).Hash

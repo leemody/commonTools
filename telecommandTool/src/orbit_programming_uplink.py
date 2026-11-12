@@ -24,8 +24,6 @@ def _build_high_speed_frame_fast(
     sequence_flags: int,
 ) -> bytes:
     """和标准高速生成器使用相同布局，仅将CRC计算交给C实现。"""
-    if sequence_flags == 3:
-        sequence_count = 0
     for name, value, bits in (("SCID", scid, 16), ("VCF", vcf_count, 8),
                               ("PID", pid, 7), ("PCAT", pcat, 4),
                               ("MAP ID", map_id, 4), ("VCID", vcid, 6),
@@ -128,7 +126,7 @@ def build_orbit_programming_frames(
             frame_flags = 2
         else:
             frame_flags = 0
-        packet_sequence_count = 0 if independent else (sequence_count + index) & 0x3FFF
+        packet_sequence_count = sequence_count if independent else (sequence_count + index) & 0x3FFF
 
         output.extend(_build_high_speed_frame_fast(
             app_data=bytes(app_data),
