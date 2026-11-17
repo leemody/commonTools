@@ -6,6 +6,7 @@
 /build-fixed/
 /build-win7/
 /dist/
+/data/
 __pycache__/
 *.py[cod]
 /.pytest_cache/
