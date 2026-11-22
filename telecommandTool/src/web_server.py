@@ -14,6 +14,7 @@ import direct_command_frame_generator as direct
 import high_speed_frame_generator as high
 import orbit_programming_uplink as orbit
 import high_speed_idle_frame_generator as idle
+import ground_station_table as ground_station
 from excel_export import create_high_upload_422_binary, create_high_upload_workbook, create_low_upload_workbook
 
 
@@ -158,6 +159,59 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        if self.path == "/api/generate/ground-station-table":
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                if size < 1 or size > 16 * 1024 * 1024:
+                    raise ValueError("请求数据须在1字节至16 MiB范围内")
+                body = self.rfile.read(size)
+                if len(body) != size:
+                    raise ValueError("地面站数据读取不完整")
+                params = json.loads(self.headers.get("X-Frame-Parameters", "{}"))
+                if not isinstance(params, dict):
+                    raise ValueError("帧参数格式错误")
+                if params.get("input_mode") == "xlsx":
+                    stations = ground_station.parse_station_xlsx(body)
+                elif params.get("input_mode") == "manual":
+                    payload = json.loads(body)
+                    if not isinstance(payload, dict):
+                        raise ValueError("手工填写的数据格式错误")
+                    stations = payload.get("stations")
+                else:
+                    raise ValueError("未知的地面站数据输入方式")
+                table, frames = ground_station.build_ground_station_frames(
+                    stations,
+                    command_code=number(params, "command_code", ground_station.DEFAULT_COMMAND_CODE),
+                    scid=number(params, "scid", "0xFF01"),
+                    vcf_count=number(params, "vcf", 0),
+                    pid=number(params, "pid", 2),
+                    pcat=number(params, "pcat", 3),
+                    service_type=number(params, "service_type", 2),
+                    service_subtype=number(params, "service_subtype", 2),
+                    parameter_limit=number(params, "parameter_limit", ground_station.DEFAULT_PARAMETER_LIMIT),
+                )
+                response = {
+                    "station_count": len(stations),
+                    "table_size": len(table),
+                    "table_hex": table.hex(" ").upper(),
+                    "frames": [
+                        {"hex": frame.hex(" ").upper(), "size": len(frame)}
+                        for frame in frames
+                    ],
+                }
+                body = json.dumps(response, ensure_ascii=False).encode("utf-8")
+                status = 200
+                content_type = "application/json; charset=utf-8"
+            except (ValueError, TypeError, OverflowError, json.JSONDecodeError) as exc:
+                body = json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8")
+                status = 400
+                content_type = "application/json; charset=utf-8"
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/api/generate/orbit-programming-upload":
             try:
                 size = int(self.headers.get("Content-Length", "0"))
